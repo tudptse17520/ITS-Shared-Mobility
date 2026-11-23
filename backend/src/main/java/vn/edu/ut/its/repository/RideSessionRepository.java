@@ -22,9 +22,9 @@ public interface RideSessionRepository extends JpaRepository<RideSession, Long> 
      */
     boolean existsByVehicle_VehicleType_IdAndStatus(Long vehicleTypeId, RideSessionStatus status);
 
-    java.util.Optional<RideSession> findFirstByVehicle_IdAndStatusOrderByTimeInDesc(Long vehicleId, RideSessionStatus status);
+    java.util.Optional<RideSession> findFirstByVehicle_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(Long vehicleId, RideSessionStatus status);
 
     java.util.List<RideSession> findByUser_IdOrderByTimeInDesc(Long userId);
 
-    java.util.Optional<RideSession> findFirstByUser_IdAndStatusOrderByTimeInDesc(Long userId, RideSessionStatus status);
+    java.util.Optional<RideSession> findFirstByUser_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(Long userId, RideSessionStatus status);
 }

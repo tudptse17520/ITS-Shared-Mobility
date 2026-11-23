@@ -1,9 +1,9 @@
 package vn.edu.ut.its.constant;
 
 /**
- * Loại sự cố trong Feedback.
- * LOST_TICKET = mất thẻ, WRONG_PLATE = sai biển số,
- * OVERTIME = quá giờ, WRONG_PLACE = đỗ sai chỗ, UNPAID_EXIT = ra bãi không thanh toán.
+ * Loại sự cố của chuyến đi.
+ * LOST_TICKET chỉ dùng để đọc lịch sử. WRONG_PLATE = sai biển số,
+ * OVERTIME = quá thời gian thuê, WRONG_PLACE = trả xe sai vị trí, UNPAID_EXIT = chưa thanh toán cước.
  */
 public enum IssueType {
     LOST_TICKET,

@@ -264,7 +264,7 @@ public class DataSeeder implements CommandLineRunner {
 
         // 1. Chuyến đi đang diễn ra (IN_PROGRESS) để minh họa trên Live Fleet Map
         RideSession activeRide = RideSession.builder()
-                .ticketCode("RIDE-ITS-EB-010-101")
+                .sessionCode("RIDE-ITS-EB-010-101")
                 .plate(inUseBike.getPlate())
                 .user(hoangNam)
                 .vehicle(inUseBike)
@@ -290,7 +290,7 @@ public class DataSeeder implements CommandLineRunner {
 
         // 2. Các chuyến đi đã hoàn tất và thanh toán qua VNPay
         RideSession completed1 = RideSession.builder()
-                .ticketCode("RIDE-ITS-ES-002-088")
+                .sessionCode("RIDE-ITS-ES-002-088")
                 .plate(completedBike.getPlate())
                 .user(thanhTu)
                 .vehicle(completedBike)
@@ -318,7 +318,7 @@ public class DataSeeder implements CommandLineRunner {
                 .build());
 
         RideSession completed2 = RideSession.builder()
-                .ticketCode("RIDE-ITS-ES-006-089")
+                .sessionCode("RIDE-ITS-ES-006-089")
                 .plate(completedBike2.getPlate())
                 .user(khach1)
                 .vehicle(completedBike2)

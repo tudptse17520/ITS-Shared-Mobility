@@ -28,7 +28,7 @@ public interface PricingPolicyRepository extends JpaRepository<PricingPolicy, Lo
      * Tìm chính sách giá có hiệu lực mới nhất của một loại phương tiện tại thời điểm chỉ định.
      *
      * @param vehicleTypeId mã loại phương tiện
-     * @param dateTime      thời điểm cần áp dụng chính sách giá (thường là lúc check-in hoặc hiện tại)
+     * @param dateTime      thời điểm cần áp dụng chính sách giá (thường là lúc bắt đầu chuyến đi hoặc thời điểm hiện tại)
      * @return một Optional chứa PricingPolicy nếu tìm thấy
      */
     java.util.Optional<PricingPolicy> findFirstByVehicleType_IdAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(Long vehicleTypeId, java.time.LocalDateTime dateTime);

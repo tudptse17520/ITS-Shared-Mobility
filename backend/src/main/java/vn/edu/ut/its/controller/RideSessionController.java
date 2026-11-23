@@ -17,19 +17,13 @@ import vn.edu.ut.its.service.RideSessionService;
 @RequiredArgsConstructor
 @CrossOrigin
 @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-@Tag(name = "Ride Session", description = "Các API quản lý lượt gửi xe")
+@Tag(name = "Ride Session", description = "Các API tra cứu và quản lý chuyến đi")
 public class RideSessionController {
 
     private final RideSessionService rideSessionService;
 
     /**
-     * API: Lấy danh sách lượt gửi xe (Ride Sessions) với bộ lọc động.
-     * Staff dùng để tìm xe lúc ra, Manager dùng để "Theo dõi xe quá giờ"[cite: 139].
-     *
-     * @param plate    (Tùy chọn) Tìm kiếm chính xác theo biển số [cite: 142]
-     * @param status   (Tùy chọn) Trạng thái lượt gửi: IN_PROGRESS (đang trong bãi) / COMPLETED (đã ra) [cite: 142]
-     * @param fromDate (Tùy chọn) Lọc thời gian vào bãi từ ngày... [cite: 142]
-     * @return HTTP 200 với total_items và mảng data chi tiết [cite: 144]
+     * Tra cứu chuyến đi theo biển số, trạng thái và ngày bắt đầu.
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -43,7 +37,7 @@ public class RideSessionController {
     }
 
     /**
-     * API: Lấy danh sách lượt gửi xe của người dùng cá nhân.
+     * Lấy lịch sử chuyến đi của người dùng.
      */
     @GetMapping("/users/{userId}/sessions")
     @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")

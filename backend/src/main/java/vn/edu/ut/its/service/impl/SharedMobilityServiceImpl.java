@@ -227,7 +227,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         LocalDateTime now = LocalDateTime.now();
 
         RideSession session = RideSession.builder()
-                .ticketCode(sessionCode)
+                .sessionCode(sessionCode)
                 .plate(vehicle.getPlate())
                 .user(user)
                 .vehicle(vehicle)
@@ -332,7 +332,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     @Transactional(readOnly = true)
     public RideSessionResponseDTO getActiveRideForCurrentUser(Long userId) {
         User user = resolveUser(userId);
-        return rideSessionRepository.findFirstByUser_IdAndStatusOrderByTimeInDesc(user.getId(), RideSessionStatus.IN_PROGRESS)
+        return rideSessionRepository.findFirstByUser_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(user.getId(), RideSessionStatus.IN_PROGRESS)
                 .map(this::mapToRideSessionDTO)
                 .orElse(null);
     }
@@ -434,7 +434,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
 
         return RideSessionResponseDTO.builder()
                 .sessionId(s.getId())
-                .sessionCode(s.getTicketCode())
+                .sessionCode(s.getSessionCode())
                 .userId(s.getUser() != null ? s.getUser().getId() : null)
                 .username(s.getUser() != null ? s.getUser().getUsername() : null)
                 .vehicleId(v != null ? v.getId() : null)

@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import vn.edu.ut.its.config.VnpayConfig;
-import vn.edu.ut.its.constant.Constants;
 import vn.edu.ut.its.constant.FeeType;
 import vn.edu.ut.its.constant.PaymentMethod;
 import vn.edu.ut.its.constant.PaymentStatus;
@@ -44,10 +43,7 @@ import vn.edu.ut.its.util.VnpayUtil;
 
 /**
  * Implementation of PaymentService. Handles all payment business logic
- * including: - E2 (Fixed Fee Mismatch) validation for Booking_Deposit and
- * Lost_Ticket_Fine - E3 (Overpayment Violation) validation for Ride_Fee -
- * Cash auto-SUCCESS, electronic payment PENDING flow - Staff manual status
- * update with audit note validation - Payment cancellation
+ * Supports booking deposits, ride fares, cash and electronic payments.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,24 +67,22 @@ public class PaymentServiceImpl implements PaymentService {
 
         // 2. Validate fee_type enum
         FeeType feeType = requestDTO.getFeeType();
+        if (feeType == FeeType.LOST_TICKET_FINE) {
+            throw new BusinessRuleViolationException("Hệ thống chỉ nhận thanh toán cước chuyến đi hoặc tiền cọc đặt giữ xe.");
+        }
 
         // 3. Validate cross-mapping: fee_type MUST match the provided ID type
         if (requestDTO.getBookingId() != null && feeType != FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho đơn đặt chỗ (booking_id), loại phí bắt buộc phải là Booking_Deposit.");
+                    "Giao dịch sai: Khi thanh toán cho đơn đặt chỗ (booking_id), loại phí bắt buộc phải là BOOKING_DEPOSIT.");
         }
         if (requestDTO.getRideSessionId() != null && feeType == FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho lượt gửi xe (ride_session_id), loại phí không được là Booking_Deposit.");
+                    "Giao dịch sai: Khi thanh toán cho chuyến đi (ride_session_id), loại phí không được là BOOKING_DEPOSIT.");
         }
 
         // 4. Validate payment_method enum
         PaymentMethod paymentMethod = requestDTO.getPaymentMethod();
-
-        // 4. E2 Check (Fixed Fee Mismatch) - Booking_Deposit hoặc Lost_Ticket_Fine
-        if (feeType == FeeType.BOOKING_DEPOSIT || feeType == FeeType.LOST_TICKET_FINE) {
-            validateFixedFeeMismatch(requestDTO, feeType);
-        }
 
         // 5. E3 Check (Overpayment Violation) - Ride_Fee
         RideSession rideSession = null;
@@ -97,7 +91,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (requestDTO.getRideSessionId() != null) {
             rideSession = rideSessionRepository.findById(requestDTO.getRideSessionId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                    "Không tìm thấy lượt gửi xe với ID: " + requestDTO.getRideSessionId()));
+                    "Không tìm thấy chuyến đi với ID: " + requestDTO.getRideSessionId()));
 
             if (feeType == FeeType.RIDE_FEE) {
                 validateOverpayment(requestDTO, rideSession);
@@ -108,6 +102,7 @@ public class PaymentServiceImpl implements PaymentService {
             booking = bookingRepository.findById(requestDTO.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                     "Không tìm thấy đơn đặt chỗ với ID: " + requestDTO.getBookingId()));
+            validateBookingDeposit(requestDTO.getAmount(), booking);
         }
 
         // 6. Build Payment entity
@@ -197,26 +192,23 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional(readOnly = true)
     public vn.edu.ut.its.dto.response.PaymentDebtResponseDTO getRemainingDebt(Long sessionId) {
         RideSession session = rideSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lượt gửi xe với ID: " + sessionId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + sessionId));
 
-        if (session.getTotalFee() == null) {
-            session.setTotalFee(BigDecimal.valueOf(10000));
-            rideSessionRepository.save(session);
-        }
+        BigDecimal totalFee = requireFinalRideFee(session);
 
         BigDecimal sumPaid = paymentCustomRepository.sumSuccessfulAmountBySessionId(session.getId());
         if (session.getBooking() != null) {
             sumPaid = sumPaid.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(session.getBooking().getId()));
         }
 
-        BigDecimal remainingDebt = session.getTotalFee().subtract(sumPaid);
+        BigDecimal remainingDebt = totalFee.subtract(sumPaid);
         if (remainingDebt.compareTo(BigDecimal.ZERO) < 0) {
             remainingDebt = BigDecimal.ZERO;
         }
 
         return vn.edu.ut.its.dto.response.PaymentDebtResponseDTO.builder()
                 .sessionId(session.getId())
-                .totalFee(session.getTotalFee())
+                .totalFee(totalFee)
                 .paidFee(sumPaid)
                 .remainingFee(remainingDebt)
                 .build();
@@ -468,73 +460,50 @@ public class PaymentServiceImpl implements PaymentService {
      * E2: Validate Fixed Fee Mismatch. Kiểm tra số tiền thanh toán phải khớp
      * 100% với mức niêm yết.
      */
-    private void validateFixedFeeMismatch(PaymentRequestDTO dto, FeeType feeType) {
-        BigDecimal expectedAmount;
-
-        if (feeType == FeeType.LOST_TICKET_FINE) {
-            // Lost_Ticket_Fine: so với hằng số mặc định
-            expectedAmount = Constants.DEFAULT_LOST_TICKET_FINE;
-        } else {
-            // Booking_Deposit: lấy basePrice từ PricingPolicy qua Booking → Vehicle → VehicleType → PricingPolicy
-            if (dto.getBookingId() == null) {
-                throw new BusinessRuleViolationException(
-                        "Phí cọc đặt chỗ (Booking_Deposit) yêu cầu phải có booking_id.");
-            }
-
-            Booking booking = bookingRepository.findById(dto.getBookingId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                    "Không tìm thấy đơn đặt chỗ với ID: " + dto.getBookingId()));
-
-            // Navigate: Booking → Vehicle → VehicleType → PricingPolicies (latest effective)
-            if (booking.getVehicle() == null || booking.getVehicle().getVehicleType() == null) {
-                throw new BusinessRuleViolationException(
-                        "Không thể xác định loại phương tiện từ đơn đặt chỗ để tra cứu mức phí cọc.");
-            }
-
-            List<PricingPolicy> policies = booking.getVehicle().getVehicleType().getPricingPolicies();
-            if (policies == null || policies.isEmpty()) {
-                throw new BusinessRuleViolationException(
-                        "Chưa có chính sách giá nào được cấu hình cho loại phương tiện này.");
-            }
-
-            // Lấy policy có effectiveDate mới nhất <= thời điểm hiện tại
-            LocalDateTime now = LocalDateTime.now();
-            PricingPolicy latestPolicy = policies.stream()
-                    .filter(p -> !p.getEffectiveDate().isAfter(now))
-                    .max(Comparator.comparing(PricingPolicy::getEffectiveDate))
-                    .orElseThrow(() -> new BusinessRuleViolationException(
-                    "Không tìm thấy chính sách giá hiệu lực cho loại phương tiện này tại thời điểm hiện tại."));
-
-            expectedAmount = latestPolicy.getBasePrice();
+    private void validateBookingDeposit(BigDecimal amount, Booking booking) {
+        if (booking.getVehicle() == null || booking.getVehicle().getVehicleType() == null) {
+            throw new BusinessRuleViolationException("Không xác định được loại xe để tra cứu tiền cọc.");
+        }
+        List<PricingPolicy> policies = booking.getVehicle().getVehicleType().getPricingPolicies();
+        if (policies == null || policies.isEmpty()) {
+            throw new BusinessRuleViolationException("Chưa có bảng giá cho loại xe này.");
         }
 
-        // So sánh chính xác 100%
-        if (dto.getAmount().compareTo(expectedAmount) != 0) {
+        LocalDateTime now = LocalDateTime.now();
+        PricingPolicy latestPolicy = policies.stream()
+                .filter(policy -> !policy.getEffectiveDate().isAfter(now))
+                .max(Comparator.comparing(PricingPolicy::getEffectiveDate))
+                .orElseThrow(() -> new BusinessRuleViolationException("Không tìm thấy bảng giá đang có hiệu lực."));
+        if (amount.compareTo(latestPolicy.getBasePrice()) != 0) {
             throw new BusinessRuleViolationException(
-                    "Số tiền thanh toán không khớp với định mức quy định của bãi xe.");
+                    "Số tiền thanh toán không khớp với tiền cọc đặt giữ xe.");
         }
     }
 
     /**
      * E3: Validate Overpayment Violation. Kiểm tra tổng tiền thanh toán không
-     * vượt quá total_fee của lượt gửi xe.
+     * vượt quá total_fee của chuyến đi.
      */
     private void validateOverpayment(PaymentRequestDTO dto, RideSession session) {
-        if (session.getTotalFee() == null) {
-            session.setTotalFee(BigDecimal.valueOf(10000));
-            rideSessionRepository.save(session);
-        }
+        BigDecimal totalFee = requireFinalRideFee(session);
 
         BigDecimal sumPaid = paymentCustomRepository.sumSuccessfulAmountBySessionId(session.getId());
         if (session.getBooking() != null) {
             sumPaid = sumPaid.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(session.getBooking().getId()));
         }
-        BigDecimal remainingDebt = session.getTotalFee().subtract(sumPaid);
+        BigDecimal remainingDebt = totalFee.subtract(sumPaid);
 
         if (dto.getAmount().compareTo(remainingDebt) > 0) {
             throw new BusinessRuleViolationException(
-                    "Không thể thực hiện giao dịch. Tổng số tiền các đợt thanh toán vượt quá chi phí lượt gửi.");
+                    "Tổng số tiền thanh toán vượt quá cước chuyến đi.");
         }
+    }
+
+    private BigDecimal requireFinalRideFee(RideSession session) {
+        if (session.getTimeOut() == null || session.getTotalFee() == null) {
+            throw new BusinessRuleViolationException("Vui lòng kết thúc chuyến đi trước khi thanh toán.");
+        }
+        return session.getTotalFee();
     }
 
     /**
@@ -542,7 +511,8 @@ public class PaymentServiceImpl implements PaymentService {
      * đã thanh toán đủ.
      */
     private void checkAndCompleteRideSession(RideSession session) {
-        if (session.getTotalFee() == null || session.getStatus() == vn.edu.ut.its.constant.RideSessionStatus.COMPLETED) {
+        if (session.getTimeOut() == null || session.getTotalFee() == null
+                || session.getStatus() == vn.edu.ut.its.constant.RideSessionStatus.COMPLETED) {
             return;
         }
 

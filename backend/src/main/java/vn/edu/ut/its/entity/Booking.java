@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 /**
  * Entity đại diện cho bảng booking trong SQL Server.
- * Đơn đặt chỗ trước cho xe vào bãi.
+ * Đơn đặt giữ xe hoặc vị trí trả xe tại trạm.
  */
 @Entity
 @Table(name = "booking")

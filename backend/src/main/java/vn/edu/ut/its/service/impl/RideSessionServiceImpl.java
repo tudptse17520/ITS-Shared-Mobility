@@ -27,11 +27,12 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
  * Implementation of RideSessionService.
- * Xử lý tra cứu lịch sử lượt thuê / gửi phương tiện.
+ * Xử lý tra cứu lịch sử chuyến đi.
  */
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,7 @@ public class RideSessionServiceImpl implements RideSessionService {
     private final PaymentRepository paymentRepository;
 
     /**
-     * Tra cứu danh sách lượt gửi xe với bộ lọc động (Dynamic Query) dùng Criteria API.
+     * Tra cứu danh sách chuyến đi với bộ lọc động (Dynamic Query) dùng Criteria API.
      */
     @Override
     @Transactional(readOnly = true)
@@ -54,14 +55,15 @@ public class RideSessionServiceImpl implements RideSessionService {
 
         // ==================== Bước 1: Validate tham số đầu vào ====================
 
-        // Kiểm tra tính hợp lệ của status: phải thuộc đúng Enum (IN_PROGRESS, COMPLETED)
+        String requestedStatus = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+        boolean awaitingPayment = "AWAITING_PAYMENT".equals(requestedStatus);
         RideSessionStatus parsedStatus = null;
-        if (status != null && !status.trim().isEmpty()) {
+        if (!requestedStatus.isEmpty()) {
             try {
-                parsedStatus = RideSessionStatus.valueOf(status.trim().toUpperCase());
+                parsedStatus = awaitingPayment ? RideSessionStatus.IN_PROGRESS : RideSessionStatus.valueOf(requestedStatus);
             } catch (IllegalArgumentException e) {
                 throw new BusinessRuleViolationException(
-                        "Trạng thái '" + status + "' không hợp lệ. Chỉ chấp nhận: IN_PROGRESS, COMPLETED.");
+                        "Trạng thái chuyến đi không hợp lệ. Chỉ chấp nhận: IN_PROGRESS, AWAITING_PAYMENT, COMPLETED.");
             }
         }
 
@@ -103,9 +105,12 @@ public class RideSessionServiceImpl implements RideSessionService {
         // Bộ lọc 2: Trạng thái (status)
         if (parsedStatus != null) {
             predicates.add(cb.equal(root.get("status"), parsedStatus));
+            if (parsedStatus == RideSessionStatus.IN_PROGRESS) {
+                predicates.add(awaitingPayment ? cb.isNotNull(root.get("timeOut")) : cb.isNull(root.get("timeOut")));
+            }
         }
 
-        // Bộ lọc 3: Từ ngày (from_date) - Lọc mốc thời gian vào bãi (time_in >= from_date)
+        // Lọc các chuyến đi bắt đầu từ thời điểm yêu cầu.
         if (parsedFromDate != null) {
             predicates.add(cb.greaterThanOrEqualTo(root.get("timeIn"), parsedFromDate));
         }
@@ -124,7 +129,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         // ==================== Bước 4: Đóng gói và Phản hồi (Flattening & Response) ====================
 
         List<RideSessionDetailDTO> data = sessions.stream()
-                .map(session -> modelMapper.map(session, RideSessionDetailDTO.class))
+                .map(this::toDetail)
                 .collect(Collectors.toList());
 
         return RideSessionListResponseDTO.builder()
@@ -134,7 +139,7 @@ public class RideSessionServiceImpl implements RideSessionService {
     }
 
     /**
-     * Tra cứu danh sách lượt gửi xe của một user cụ thể.
+     * Tra cứu danh sách chuyến đi của một user cụ thể.
      */
     @Override
     @Transactional(readOnly = true)
@@ -149,7 +154,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         List<RideSession> sessions = entityManager.createQuery(query).getResultList();
 
         List<RideSessionDetailDTO> data = sessions.stream()
-                .map(session -> modelMapper.map(session, RideSessionDetailDTO.class))
+                .map(this::toDetail)
                 .collect(Collectors.toList());
 
         return RideSessionListResponseDTO.builder()
@@ -161,15 +166,15 @@ public class RideSessionServiceImpl implements RideSessionService {
     @Override
     public RideSessionDetailDTO updateSessionStatus(Long id, String status) {
         RideSession session = rideSessionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lượt gửi xe với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + id));
 
         if (status == null || status.isBlank()) {
-            throw new BusinessRuleViolationException("Trạng thái lượt gửi xe không được để trống.");
+            throw new BusinessRuleViolationException("Trạng thái chuyến đi không được để trống.");
         }
 
         RideSessionStatus newStatus;
         try {
-            newStatus = RideSessionStatus.valueOf(status.trim().toUpperCase());
+            newStatus = RideSessionStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new BusinessRuleViolationException("Trạng thái '" + status + "' không hợp lệ.");
         }
@@ -185,13 +190,21 @@ public class RideSessionServiceImpl implements RideSessionService {
         }
 
         RideSession saved = rideSessionRepository.save(session);
-        return modelMapper.map(saved, RideSessionDetailDTO.class);
+        return toDetail(saved);
+    }
+
+    private RideSessionDetailDTO toDetail(RideSession session) {
+        RideSessionDetailDTO detail = modelMapper.map(session, RideSessionDetailDTO.class);
+        if (session.getStatus() == RideSessionStatus.IN_PROGRESS && session.getTimeOut() != null) {
+            detail.setStatus("AWAITING_PAYMENT");
+        }
+        return detail;
     }
 
     @Override
     public void deleteSession(Long id) {
         RideSession session = rideSessionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lượt gửi xe với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + id));
 
         if (session.getStationDock() != null && session.getStationDock().getStatus() == StationDockStatus.OCCUPIED) {
             dockAvailabilityService.updateDockStatus(session.getStationDock().getId(), StationDockStatus.AVAILABLE);

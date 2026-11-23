@@ -44,6 +44,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional
     public FeedbackResponse createFeedback(FeedbackRequest request) {
+        rejectLegacyIssueType(request.getIssueType());
         RideSession session = rideSessionRepository.findById(request.getRideSessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ride Session not found with ID: " + request.getRideSessionId()));
 
@@ -63,6 +64,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     public FeedbackResponse updateFeedback(Long id, FeedbackRequest request) {
         Feedback feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Feedback not found with ID: " + id));
+        if (feedback.getIssueType() != request.getIssueType()) {
+            rejectLegacyIssueType(request.getIssueType());
+        }
 
         RideSession session = rideSessionRepository.findById(request.getRideSessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ride Session not found with ID: " + request.getRideSessionId()));
@@ -77,6 +81,12 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         Feedback updatedFeedback = feedbackRepository.save(feedback);
         return mapToResponse(updatedFeedback);
+    }
+
+    private void rejectLegacyIssueType(IssueType issueType) {
+        if (issueType == IssueType.LOST_TICKET) {
+            throw new vn.edu.ut.its.exception.BusinessRuleViolationException("Vui lòng chọn loại sự cố của chuyến đi.");
+        }
     }
 
     @Override
