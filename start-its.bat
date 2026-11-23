@@ -1,15 +1,18 @@
 @echo off
-title Project_ITS - Shared Mobility Control Panel
+setlocal
+set "BACKEND_JAR=target\its-shared-mobility-0.0.1-SNAPSHOT.jar"
+if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
+title ITS-Shared-Mobility Control Panel
 color 0B
 cls
 echo ==============================================================================
-echo         PROJECT_ITS - HE THONG CHO THUE PHUONG TIEN CHIA SE (SHARED MOBILITY)
+echo         ITS-SHARED-MOBILITY - HE THONG CHO THUE PHUONG TIEN CHIA SE
 echo ==============================================================================
 echo.
 echo  Dang khoi dong cac dich vu...
 echo.
-echo  [1/2] Khoi dong Spring Boot Backend (JDK 17) tai cong 8080...
-start "ITS Backend Server" cmd /k "chcp 65001 >nul && set JAVA_HOME=C:\Program Files\Java\jdk-17&& set PATH=C:\Program Files\Java\jdk-17\bin;%PATH%&& cd /d "%~dp0backend" && if not exist target\parking-building-management-system-0.0.1-SNAPSHOT.jar (call mvnw.cmd package -DskipTests) && java -jar target\parking-building-management-system-0.0.1-SNAPSHOT.jar"
+echo  [1/2] Khoi dong Spring Boot Backend (JDK 17+) tai cong 8080...
+start "ITS Backend Server" /D "%~dp0backend" cmd /k "chcp 65001 >nul && (if not exist %BACKEND_JAR% call mvnw.cmd package -DskipTests) && java -jar %BACKEND_JAR%"
 
 echo  [2/2] Khoi dong Web Admin (Next.js + VietMap) tai cong 3000...
 start "ITS Web Admin" cmd /k "cd /d "%~dp0frontend" && npm run dev"
