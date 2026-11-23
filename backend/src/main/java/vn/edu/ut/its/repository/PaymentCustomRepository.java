@@ -1,0 +1,59 @@
+package vn.edu.ut.its.repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import vn.edu.ut.its.constant.PaymentStatus;
+import vn.edu.ut.its.entity.Payment;
+
+/**
+ * Custom JPA Repository for Payment entity. Provides custom @Query methods for
+ * sum aggregations and dynamic filtering.
+ */
+@Repository
+public interface PaymentCustomRepository extends JpaRepository<Payment, Long> {
+
+    /**
+     * Sum all successful payment amounts for a given ride session. Used for
+     * E3 (Overpayment Violation) check.
+     *
+     * @param sessionId the ride session ID
+     * @return total amount of successful payments, or BigDecimal.ZERO if none
+     */
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p "
+            + "WHERE p.rideSession.id = :sessionId "
+            + "AND p.status = vn.edu.ut.its.constant.PaymentStatus.SUCCESS "
+            + "AND p.feeType = vn.edu.ut.its.constant.FeeType.RIDE_FEE")
+    BigDecimal sumSuccessfulAmountBySessionId(@Param("sessionId") Long sessionId);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p "
+            + "WHERE p.booking.id = :bookingId "
+            + "AND p.status = vn.edu.ut.its.constant.PaymentStatus.SUCCESS "
+            + "AND p.feeType = vn.edu.ut.its.constant.FeeType.BOOKING_DEPOSIT")
+    BigDecimal sumSuccessfulAmountByBookingId(@Param("bookingId") Long bookingId);
+
+    /**
+     * Find payments by dynamic filters (payment_method, status, from_date). All
+     * parameters are optional — null values are ignored in the query.
+     *
+     * @param paymentMethod filter by payment method (nullable)
+     * @param status filter by payment status enum (nullable)
+     * @param fromDateTime filter payments from this datetime onwards (nullable)
+     * @return list of matching Payment entities ordered by payment_time
+     * descending
+     */
+    @Query("SELECT p FROM Payment p WHERE "
+            + "(:paymentMethod IS NULL OR p.paymentMethod = :paymentMethod) AND "
+            + "(:status IS NULL OR p.status = :status) AND "
+            + "(:fromDateTime IS NULL OR p.paymentTime >= :fromDateTime) "
+            + "ORDER BY p.paymentTime DESC")
+    List<Payment> findByFilters(@Param("paymentMethod") String paymentMethod,
+            @Param("status") PaymentStatus status,
+            @Param("fromDateTime") LocalDateTime fromDateTime);
+}
