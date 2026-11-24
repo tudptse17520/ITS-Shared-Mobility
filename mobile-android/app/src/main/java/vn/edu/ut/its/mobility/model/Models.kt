@@ -130,3 +130,18 @@ data class PaymentResponseDto(
     val paymentUrl: String?
 )
 
+data class FeedbackRequestDto(
+    val rideSessionId: Long,
+    val issueType: String,
+    val description: String,
+    val status: String = "REPORTED"
+)
+
+data class FeedbackResponseDto(
+    val id: Long,
+    val rideSessionId: Long,
+    val issueType: String,
+    val description: String?,
+    val status: String
+)
+

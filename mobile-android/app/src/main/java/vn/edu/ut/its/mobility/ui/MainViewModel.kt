@@ -1,16 +1,20 @@
 package vn.edu.ut.its.mobility.ui
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import vn.edu.ut.its.mobility.data.SessionManager
 import vn.edu.ut.its.mobility.model.*
 import vn.edu.ut.its.mobility.network.RetrofitClient
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val sessionManager = SessionManager(application)
 
     var isAuthenticated by mutableStateOf(false)
         private set
@@ -22,6 +26,10 @@ class MainViewModel : ViewModel() {
     var vehicles by mutableStateOf<List<FleetVehicleDto>>(emptyList())
         private set
     var selectedVehicle by mutableStateOf<FleetVehicleDto?>(null)
+        private set
+    var reservedVehicleId by mutableStateOf<Long?>(null)
+        private set
+    var reservationExpiresAtMillis by mutableStateOf<Long?>(null)
         private set
     var activeRide by mutableStateOf<RideSessionDto?>(null)
         private set
@@ -45,6 +53,32 @@ class MainViewModel : ViewModel() {
     var userLng by mutableStateOf(106.7166)
         private set
 
+    init {
+        RetrofitClient.onUnauthorized = {
+            viewModelScope.launch {
+                if (isAuthenticated) {
+                    logout()
+                    errorMessage = "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."
+                }
+            }
+        }
+        val savedToken = sessionManager.getToken()
+        if (!savedToken.isNullOrBlank()) {
+            RetrofitClient.authToken = savedToken
+            isAuthenticated = true
+            loadInitialData()
+        }
+    }
+
+    fun updateUserLocation(lat: Double, lng: Double) {
+        if (lat !in -90.0..90.0 || lng !in -180.0..180.0 || (lat == 0.0 && lng == 0.0)) return
+        userLat = lat
+        userLng = lng
+        if (isAuthenticated) {
+            refreshFleet()
+        }
+    }
+
     fun clearMessages() {
         statusMessage = null
         errorMessage = null
@@ -62,6 +96,7 @@ class MainViewModel : ViewModel() {
                 val res = RetrofitClient.api.login(LoginRequest(username.trim(), password))
                 if (res.isSuccessful && res.body() != null) {
                     val body = res.body()!!
+                    sessionManager.saveToken(body.token)
                     RetrofitClient.authToken = body.token
                     isAuthenticated = true
                     statusMessage = body.message
@@ -87,6 +122,7 @@ class MainViewModel : ViewModel() {
                 )
                 if (res.isSuccessful && res.body() != null) {
                     val body = res.body()!!
+                    sessionManager.saveToken(body.token)
                     RetrofitClient.authToken = body.token
                     isAuthenticated = true
                     statusMessage = body.message
@@ -103,9 +139,12 @@ class MainViewModel : ViewModel() {
     }
 
     fun logout() {
+        sessionManager.clearToken()
         RetrofitClient.authToken = null
         isAuthenticated = false
         currentUser = null
+        reservedVehicleId = null
+        reservationExpiresAtMillis = null
         activeRide = null
         completedRideForPayment = null
         vnpayPaymentUrl = null
@@ -182,6 +221,8 @@ class MainViewModel : ViewModel() {
                 val res = RetrofitClient.api.reserveVehicle(ReserveRequest(vehicle.id, currentUser?.id))
                 if (res.isSuccessful && res.body() != null) {
                     statusMessage = res.body()!!.message
+                    reservedVehicleId = vehicle.id
+                    reservationExpiresAtMillis = System.currentTimeMillis() + 15 * 60_000L
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Đặt giữ xe thất bại")
@@ -203,6 +244,10 @@ class MainViewModel : ViewModel() {
                 val res = RetrofitClient.api.cancelReservation(vehicle.id)
                 if (res.isSuccessful) {
                     statusMessage = "Đã hủy đặt giữ xe ${vehicle.vehicleCode}."
+                    if (reservedVehicleId == vehicle.id) {
+                        reservedVehicleId = null
+                        reservationExpiresAtMillis = null
+                    }
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể hủy đặt giữ xe")
@@ -253,6 +298,8 @@ class MainViewModel : ViewModel() {
                 )
                 if (res.isSuccessful && res.body() != null) {
                     activeRide = res.body()
+                    reservedVehicleId = null
+                    reservationExpiresAtMillis = null
                     statusMessage = "Mở khóa xe ${activeRide?.vehicleCode} thành công!"
                     refreshFleet()
                 } else {
@@ -369,6 +416,37 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun submitRideFeedback(
+        rideSessionId: Long,
+        issueType: String,
+        description: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            isLoading = true
+            clearMessages()
+            try {
+                val res = RetrofitClient.api.createFeedback(
+                    FeedbackRequestDto(
+                        rideSessionId = rideSessionId,
+                        issueType = issueType,
+                        description = description.trim().ifBlank { "Báo cáo sự cố từ ứng dụng di động" }
+                    )
+                )
+                if (res.isSuccessful) {
+                    statusMessage = "Đã gửi báo cáo sự cố thành công!"
+                    onSuccess()
+                } else {
+                    errorMessage = parseError(res.errorBody()?.string(), "Gửi báo cáo sự cố thất bại")
+                }
+            } catch (e: Exception) {
+                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     private fun parseError(raw: String?, fallback: String): String {
         if (raw.isNullOrBlank()) return fallback
         return try {
@@ -385,8 +463,10 @@ internal fun extractVehicleCodeFromQr(raw: String): String {
     if (trimmed.isEmpty()) return ""
     if (trimmed.startsWith("{")) {
         try {
-            val json = JSONObject(trimmed)
-            val fromJson = json.optString("code").ifBlank { json.optString("vehicleCode") }
+            val json = com.google.gson.JsonParser.parseString(trimmed).asJsonObject
+            val codeEl = json.get("code")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+            val vehicleCodeEl = json.get("vehicleCode")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+            val fromJson = codeEl.ifBlank { vehicleCodeEl }
             if (fromJson.isNotBlank()) return fromJson.trim().uppercase()
         } catch (_: Exception) {
         }

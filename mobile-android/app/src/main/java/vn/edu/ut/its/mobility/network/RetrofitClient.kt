@@ -16,6 +16,9 @@ object RetrofitClient {
     @Volatile
     var authToken: String? = null
 
+    @Volatile
+    var onUnauthorized: (() -> Unit)? = null
+
     private val nullOnEmptyConverterFactory = object : Converter.Factory() {
         override fun responseBodyConverter(
             type: Type,
@@ -51,7 +54,12 @@ object RetrofitClient {
             authToken?.let { token ->
                 builder.addHeader("Authorization", "Bearer $token")
             }
-            chain.proceed(builder.build())
+            val response = chain.proceed(builder.build())
+            val path = original.url.encodedPath
+            if (response.code == 401 && !path.endsWith("/auth/login") && !path.endsWith("/auth/register")) {
+                onUnauthorized?.invoke()
+            }
+            response
         }
         .addInterceptor(loggingInterceptor)
         .build()

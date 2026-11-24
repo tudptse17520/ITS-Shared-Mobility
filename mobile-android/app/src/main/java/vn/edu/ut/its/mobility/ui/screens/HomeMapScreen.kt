@@ -1,10 +1,16 @@
 package vn.edu.ut.its.mobility.ui.screens
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,21 +19,25 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.UrlTileProvider
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 import vn.edu.ut.its.mobility.BuildConfig
 import vn.edu.ut.its.mobility.model.FleetVehicleDto
 import vn.edu.ut.its.mobility.model.RideSessionDto
@@ -40,10 +50,72 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeMapScreen(viewModel: MainViewModel) {
+    val context = LocalContext.current
     var showQrDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
+    var feedbackSessionTarget by remember { mutableStateOf<RideSessionDto?>(null) }
     var useVietMapWebMode by remember { mutableStateOf(true) }
     var filterMode by remember { mutableStateOf("ALL") }
+    var remainingReserveSeconds by remember { mutableStateOf(0L) }
+
+    val tryReadLastLocation = remember(context) {
+        {
+            runCatching {
+                val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (loc != null) {
+                    viewModel.updateUserLocation(loc.latitude, loc.longitude)
+                }
+            }
+            Unit
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val granted = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            perms[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            tryReadLastLocation()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (fineGranted || coarseGranted) {
+            tryReadLastLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(viewModel.reservationExpiresAtMillis) {
+        val expiresAt = viewModel.reservationExpiresAtMillis
+        if (expiresAt == null) {
+            remainingReserveSeconds = 0L
+        } else {
+            while (true) {
+                val rem = ((expiresAt - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
+                remainingReserveSeconds = rem
+                if (rem <= 0L) break
+                delay(1000L)
+            }
+        }
+    }
 
     val filteredVehicles = remember(viewModel.vehicles, filterMode) {
         when (filterMode) {
@@ -103,7 +175,7 @@ fun HomeMapScreen(viewModel: MainViewModel) {
                         Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
                     }
                     IconButton(onClick = { viewModel.logout() }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Đăng xuất")
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Đăng xuất")
                     }
                 }
             )
@@ -162,7 +234,9 @@ fun HomeMapScreen(viewModel: MainViewModel) {
                         cameraPositionState = cameraPositionState,
                         uiSettings = MapUiSettings(zoomControlsEnabled = true)
                     ) {
-                        TileOverlay(tileProvider = vietMapTileProvider, zIndex = 0f)
+                        if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+                            TileOverlay(tileProvider = vietMapTileProvider, zIndex = 0f)
+                        }
 
                         // Marker các Trạm xe
                         viewModel.stations.forEach { st ->
@@ -313,7 +387,19 @@ fun HomeMapScreen(viewModel: MainViewModel) {
                             }
                             AssistChip(
                                 onClick = {},
-                                label = { Text(vehicle.fleetStatus) }
+                                label = {
+                                    val holdSuffix = if (
+                                        viewModel.reservedVehicleId == vehicle.id &&
+                                        remainingReserveSeconds > 0
+                                    ) {
+                                        val mins = remainingReserveSeconds / 60
+                                        val secs = remainingReserveSeconds % 60
+                                        " · %02d:%02d".format(mins, secs)
+                                    } else {
+                                        ""
+                                    }
+                                    Text("${vehicle.fleetStatus}$holdSuffix")
+                                }
                             )
                         }
 
@@ -415,7 +501,27 @@ fun HomeMapScreen(viewModel: MainViewModel) {
             rides = viewModel.rideHistory,
             isLoading = viewModel.isLoadingHistory,
             vndFormat = vndFormat,
-            onDismiss = { showHistoryDialog = false }
+            onDismiss = { showHistoryDialog = false },
+            onReportIssue = { ride ->
+                showHistoryDialog = false
+                feedbackSessionTarget = ride
+            }
+        )
+    }
+
+    feedbackSessionTarget?.let { targetRide ->
+        ReportIssueDialog(
+            ride = targetRide,
+            isSubmitting = viewModel.isLoading,
+            onDismiss = { feedbackSessionTarget = null },
+            onSubmit = { issueType, description ->
+                viewModel.submitRideFeedback(
+                    rideSessionId = targetRide.sessionId,
+                    issueType = issueType,
+                    description = description,
+                    onSuccess = { feedbackSessionTarget = null }
+                )
+            }
         )
     }
 }
@@ -425,7 +531,8 @@ private fun RideHistoryDialog(
     rides: List<RideSessionDto>,
     isLoading: Boolean,
     vndFormat: NumberFormat,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onReportIssue: (RideSessionDto) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -501,6 +608,23 @@ private fun RideHistoryDialog(
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        onClick = { onReportIssue(ride) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ReportProblem,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Báo cáo sự cố", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
                             }
                         }
                     }
@@ -510,6 +634,80 @@ private fun RideHistoryDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+internal fun ReportIssueDialog(
+    ride: RideSessionDto,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (issueType: String, description: String) -> Unit
+) {
+    val issueOptions = remember {
+        listOf(
+            "WRONG_RETURN_LOCATION" to "Trả xe sai vị trí",
+            "WRONG_PLATE" to "Sai biển số / thông tin xe",
+            "RIDE_OVERTIME" to "Sự cố thời gian thuê",
+            "UNPAID_RIDE" to "Sự cố thanh toán",
+            "OTHER" to "Sự cố kỹ thuật khác"
+        )
+    }
+    var selectedIssueType by remember { mutableStateOf("OTHER") }
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        title = {
+            Text("Báo cáo sự cố · ${ride.vehicleCode ?: ride.sessionCode}", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Mã chuyến #${ride.sessionCode}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B)
+                )
+                issueOptions.forEach { (code, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedIssueType = code }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedIssueType == code,
+                            onClick = { selectedIssueType = code }
+                        )
+                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Mô tả chi tiết") },
+                    placeholder = { Text("Ví dụ: Xe yếu pin hoặc khóa dock khó đóng...") },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSubmit(selectedIssueType, description) },
+                enabled = !isSubmitting,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
+            ) {
+                Text(if (isSubmitting) "Đang gửi..." else "Gửi báo cáo")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text("Hủy")
             }
         }
     )
@@ -546,7 +744,17 @@ private fun VietMapLeafletWebView(
     val mapCenterLng = selectedVehicle?.longitude ?: centerLng
     val selectedIdValue = selectedVehicleId?.toString() ?: "null"
 
-    val html = remember(stationsJson, vehiclesJson, selectedIdValue, mapCenterLat, mapCenterLng) {
+    val vietmapLayerScript = if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+        """
+              L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
+                maxZoom: 20,
+                tileSize: 256,
+                attribution: '&copy; VietMap'
+              }).addTo(map);
+        """.trimIndent()
+    } else ""
+
+    val html = remember(stationsJson, vehiclesJson, selectedIdValue, mapCenterLat, mapCenterLng, vietmapLayerScript) {
         """
         <!DOCTYPE html>
         <html>
@@ -574,11 +782,7 @@ private fun VietMapLeafletWebView(
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'
               }).addTo(map);
-              L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
-                maxZoom: 20,
-                tileSize: 256,
-                attribution: '&copy; VietMap'
-              }).addTo(map);
+              $vietmapLayerScript
 
               var stations = $stationsJson;
               stations.forEach(function(st) {
