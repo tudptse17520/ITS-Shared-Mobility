@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   web:
     name: Web Admin (TypeScript, ESLint, Next.js Build)
@@ -51,18 +55,30 @@ jobs:
           cache: maven
       - name: Wait for SQL Server and create CI test database
         run: |
-          SQLCMD="/opt/mssql-tools18/bin/sqlcmd"
-          if [ ! -x "$SQLCMD" ]; then
-            SQLCMD="/opt/mssql-tools/bin/sqlcmd"
+          CID=$(docker ps --filter "ancestor=mcr.microsoft.com/mssql/server:2022-latest" --format "{{.ID}}" | head -n 1)
+          if [ -z "$CID" ]; then
+            echo "Could not find running SQL Server container"
+            docker ps -a
+            exit 1
           fi
-          for i in $(seq 1 30); do
-            if "$SQLCMD" -S 127.0.0.1,1433 -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" >/dev/null 2>&1; then
-              "$SQLCMD" -S 127.0.0.1,1433 -U sa -P "$SA_PASSWORD" -C -Q "IF DB_ID('${DB_NAME}') IS NULL CREATE DATABASE [${DB_NAME}];"
+
+          SQLCMD=$(docker exec "$CID" sh -c 'if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then echo /opt/mssql-tools18/bin/sqlcmd; elif [ -x /opt/mssql-tools/bin/sqlcmd ]; then echo /opt/mssql-tools/bin/sqlcmd; fi')
+          if [ -z "$SQLCMD" ]; then
+            echo "sqlcmd not found inside SQL Server container"
+            exit 1
+          fi
+
+          for i in $(seq 1 40); do
+            if docker exec "$CID" "$SQLCMD" -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              docker exec "$CID" "$SQLCMD" -S localhost -U sa -P "$SA_PASSWORD" -C -Q "IF DB_ID('${DB_NAME}') IS NULL CREATE DATABASE [${DB_NAME}];"
+              echo "Created/verified database ${DB_NAME}"
               exit 0
             fi
             sleep 2
           done
+
           echo "SQL Server did not become ready in time"
+          docker logs "$CID" | tail -n 50
           exit 1
       - name: Run Maven Test Suite
         working-directory: backend
@@ -71,6 +87,7 @@ jobs:
           DB_USERNAME: sa
           DB_PASSWORD: "ItsCi!Password2026"
           JWT_SECRET: "ci-its-shared-mobility-secret-key-minimum-32-bytes"
+          JWT_EXPIRATION: "86400000"
           VNPAY_TMN_CODE: "2XKCYOIK"
           VNPAY_HASH_SECRET: "CI_DUMMY_VNPAY_HASH_SECRET_32_BYTES"
         run: |
@@ -90,7 +107,26 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - uses: android-actions/setup-android@v3
+      - name: Verify Android SDK and accept licenses
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT" ]; then
+            echo "Android SDK directory not found: '$SDK_ROOT'"
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" "$SDK_ROOT/tools" -name sdkmanager -type f 2>/dev/null | head -n 1 || true)
+          fi
+          if [ -n "$SDKMANAGER" ] && [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
+            if [ ! -d "$SDK_ROOT/platforms/android-35" ] || [ ! -d "$SDK_ROOT/build-tools/35.0.0" ]; then
+              "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+            fi
+          fi
       - name: Run unit tests and build Debug APK
         env:
           API_BASE_URL: "http://10.0.2.2:8080/api/v1/"
@@ -99,4 +135,3 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
-
