@@ -10,17 +10,18 @@ export interface ReportDetail {
     value?: number;
     amount?: number;
     revenue?: number;
-    entries?: number;
-    exits?: number;
-    vao?: number;
-    ra?: number;
+    ridesStarted?: number;
+    ridesEnded?: number;
+
+
     [key: string]: unknown;
 }
 
 export interface DashboardReport {
-    totalEntries: number;
-    totalExits: number;
+    totalRidesStarted: number;
+    totalRidesEnded: number;
     totalRevenue: number;
+    activeRides: number;
     occupancyRate: number;
     peakHour: string;
     details: ReportDetail;
@@ -43,8 +44,8 @@ export interface PeakHourReport {
     details: ReportDetail[];
 }
 
-export interface VehicleEntryExitReport {
-    totalEntries: number;
-    totalExits: number;
+export interface RideFlowReport {
+    totalRidesStarted: number;
+    totalRidesEnded: number;
     details: ReportDetail[];
 }

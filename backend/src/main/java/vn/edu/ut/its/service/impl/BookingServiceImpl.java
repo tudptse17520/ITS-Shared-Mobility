@@ -73,11 +73,11 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 4. Parse Dates
-        LocalDateTime expectedTimeIn = parseDateTime(request.getExpectedTimeIn(), "Thời gian dự kiến vào");
-        LocalDateTime expectedTimeOut = parseDateTime(request.getExpectedTimeOut(), "Thời gian dự kiến ra");
+        LocalDateTime plannedStartAt = parseDateTime(request.getPlannedStartAt(), "Thời điểm bắt đầu dự kiến");
+        LocalDateTime plannedEndAt = parseDateTime(request.getPlannedEndAt(), "Thời điểm kết thúc dự kiến");
 
-        if (expectedTimeOut.isBefore(expectedTimeIn)) {
-            throw new BusinessRuleViolationException("Thời gian dự kiến ra không được trước thời gian dự kiến vào.");
+        if (plannedEndAt.isBefore(plannedStartAt)) {
+            throw new BusinessRuleViolationException("Thời điểm kết thúc dự kiến không được trước thời điểm bắt đầu dự kiến.");
         }
 
         // 5. Build and save Booking
@@ -85,8 +85,8 @@ public class BookingServiceImpl implements BookingService {
                 .user(user)
                 .vehicle(vehicle)
                 .stationDock(dock)
-                .expectedTimeIn(expectedTimeIn)
-                .expectedTimeOut(expectedTimeOut)
+                .plannedStartAt(plannedStartAt)
+                .plannedEndAt(plannedEndAt)
                 .status(BookingStatus.PENDING)
                 .build();
 
@@ -149,7 +149,7 @@ public class BookingServiceImpl implements BookingService {
         if (booking.getStationDock() != null) {
             if (status == BookingStatus.CANCELLED || status == BookingStatus.EXPIRED) {
                 dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.AVAILABLE);
-            } else if (status == BookingStatus.CHECKED_IN) {
+            } else if (status == BookingStatus.USED) {
                 dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.OCCUPIED);
             } else {
                 dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.RESERVED);
@@ -185,8 +185,8 @@ public class BookingServiceImpl implements BookingService {
                 .bookingId(booking.getId())
                 .stationDockId(booking.getStationDock() != null ? booking.getStationDock().getId() : null)
                 .stationDockName(booking.getStationDock() != null ? booking.getStationDock().getDockName() : null)
-                .expectedTimeIn(booking.getExpectedTimeIn() != null ? booking.getExpectedTimeIn().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
-                .expectedTimeOut(booking.getExpectedTimeOut() != null ? booking.getExpectedTimeOut().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
+                .plannedStartAt(booking.getPlannedStartAt() != null ? booking.getPlannedStartAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
+                .plannedEndAt(booking.getPlannedEndAt() != null ? booking.getPlannedEndAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
                 .customerName(booking.getUser() != null ? booking.getUser().getFullName() : null)
                 .customerPhone(booking.getUser() != null ? booking.getUser().getPhoneNumber() : null)
                 .licensePlate(booking.getVehicle() != null ? booking.getVehicle().getPlate() : null)

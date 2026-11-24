@@ -15,8 +15,8 @@ public class BookingListResponseDTO {
     private Long bookingId;
     private Long stationDockId;
     private String stationDockName;
-    private String expectedTimeIn;
-    private String expectedTimeOut;
+    private String plannedStartAt;
+    private String plannedEndAt;
     private String customerName;
     private String customerPhone;
     private String licensePlate;

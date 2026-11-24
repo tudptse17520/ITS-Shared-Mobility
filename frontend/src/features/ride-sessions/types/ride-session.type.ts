@@ -4,8 +4,8 @@ export interface RideSession {
   id: number;
   sessionCode: string;
   plate: string;
-  timeIn: string;
-  timeOut: string | null;
+  startedAt: string;
+  endedAt: string | null;
   totalFee: number | null;
   status: SessionStatus;
   vehicleId: number | null;

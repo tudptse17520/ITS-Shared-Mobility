@@ -29,17 +29,17 @@ public class RideSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ticket_code", nullable = false, unique = true, length = 50)
+    @Column(name = "session_code", nullable = false, unique = true, length = 50)
     private String sessionCode;
 
     @Column(nullable = false, length = 20)
     private String plate;
 
-    @Column(name = "time_in", nullable = false)
-    private LocalDateTime timeIn;
+    @Column(name = "started_at", nullable = false)
+    private LocalDateTime startedAt;
 
-    @Column(name = "time_out")
-    private LocalDateTime timeOut;
+    @Column(name = "ended_at")
+    private LocalDateTime endedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

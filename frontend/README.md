@@ -23,12 +23,14 @@ frontend/
 ## Web routes
 
 - `/` — project landing page.
+- `/login` and `/register` — account access.
+- `/admin/dashboard` — fleet and ride summary.
 - `/admin/fleet-map` — fleet map and telemetry.
+- `/manager/stations` — stations and dock availability.
 - `/manager/bookings` — vehicle reservations.
 - `/manager/feedbacks` — ride feedback and incidents.
+- `/manager/reports` — ride flow, revenue and current dock utilization.
 - `/profile` — rider profile and ride history.
-
-The `feature/web-auth-layout` branch adds `/login`, `/register`, and the shared dashboard components required to build these pages together.
 
 ## Prerequisites
 - Node.js 20.9 or newer

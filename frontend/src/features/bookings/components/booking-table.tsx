@@ -21,7 +21,7 @@ export interface BookingContextData extends BookingListResponse {
   customerPhone?: string;
   licensePlate?: string;
   vehicleTypeName?: string;
-  expectedTimeOut?: string;
+  plannedEndAt?: string;
 }
 
 interface BookingTableProps {
@@ -130,8 +130,8 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
         id: "timeRange",
         header: "Thời gian dự kiến",
         cell: ({ row }) => {
-          const inDateStr = row.original.expectedTimeIn;
-          const outDateStr = row.original.expectedTimeOut;
+          const inDateStr = row.original.plannedStartAt;
+          const outDateStr = row.original.plannedEndAt;
           
           const formatStr = (d?: string) => {
             if (!d) return "N/A";

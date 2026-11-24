@@ -34,7 +34,7 @@ export default function ReportsDashboardPage() {
         <PageContainer>
             <PageHeader
                 title="Báo cáo & Thống kê"
-                description="Tổng quan doanh thu và chỉ số vận hành của bãi đỗ xe"
+                description="Tổng quan doanh thu, chuyến đi và tình trạng sử dụng dock"
             />
             <div className="flex justify-between items-center mb-6">
                 <div></div>

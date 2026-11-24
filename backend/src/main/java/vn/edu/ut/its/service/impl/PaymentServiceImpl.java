@@ -67,7 +67,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         // 2. Validate fee_type enum
         FeeType feeType = requestDTO.getFeeType();
-        if (feeType == FeeType.LOST_TICKET_FINE) {
+        if (feeType == FeeType.HISTORICAL_ADJUSTMENT) {
             throw new BusinessRuleViolationException("Hệ thống chỉ nhận thanh toán cước chuyến đi hoặc tiền cọc đặt giữ xe.");
         }
 
@@ -500,7 +500,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private BigDecimal requireFinalRideFee(RideSession session) {
-        if (session.getTimeOut() == null || session.getTotalFee() == null) {
+        if (session.getEndedAt() == null || session.getTotalFee() == null) {
             throw new BusinessRuleViolationException("Vui lòng kết thúc chuyến đi trước khi thanh toán.");
         }
         return session.getTotalFee();
@@ -511,7 +511,7 @@ public class PaymentServiceImpl implements PaymentService {
      * đã thanh toán đủ.
      */
     private void checkAndCompleteRideSession(RideSession session) {
-        if (session.getTimeOut() == null || session.getTotalFee() == null
+        if (session.getEndedAt() == null || session.getTotalFee() == null
                 || session.getStatus() == vn.edu.ut.its.constant.RideSessionStatus.COMPLETED) {
             return;
         }

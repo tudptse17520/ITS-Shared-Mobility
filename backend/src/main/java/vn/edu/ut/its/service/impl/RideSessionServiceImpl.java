@@ -106,13 +106,13 @@ public class RideSessionServiceImpl implements RideSessionService {
         if (parsedStatus != null) {
             predicates.add(cb.equal(root.get("status"), parsedStatus));
             if (parsedStatus == RideSessionStatus.IN_PROGRESS) {
-                predicates.add(awaitingPayment ? cb.isNotNull(root.get("timeOut")) : cb.isNull(root.get("timeOut")));
+                predicates.add(awaitingPayment ? cb.isNotNull(root.get("endedAt")) : cb.isNull(root.get("endedAt")));
             }
         }
 
         // Lọc các chuyến đi bắt đầu từ thời điểm yêu cầu.
         if (parsedFromDate != null) {
-            predicates.add(cb.greaterThanOrEqualTo(root.get("timeIn"), parsedFromDate));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("startedAt"), parsedFromDate));
         }
 
         if (!predicates.isEmpty()) {
@@ -120,7 +120,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         }
 
         // Sắp xếp mặc định theo thời gian vào (mới nhất lên trước)
-        query.orderBy(cb.desc(root.get("timeIn")));
+        query.orderBy(cb.desc(root.get("startedAt")));
 
         // ==================== Bước 3: Truy xuất cơ sở dữ liệu (Database Fetch) ====================
 
@@ -149,7 +149,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         Root<RideSession> root = query.from(RideSession.class);
 
         query.where(cb.equal(root.get("user").get("id"), userId));
-        query.orderBy(cb.desc(root.get("timeIn")));
+        query.orderBy(cb.desc(root.get("startedAt")));
 
         List<RideSession> sessions = entityManager.createQuery(query).getResultList();
 
@@ -181,8 +181,8 @@ public class RideSessionServiceImpl implements RideSessionService {
 
         session.setStatus(newStatus);
         if (newStatus == RideSessionStatus.COMPLETED) {
-            if (session.getTimeOut() == null) {
-                session.setTimeOut(LocalDateTime.now());
+            if (session.getEndedAt() == null) {
+                session.setEndedAt(LocalDateTime.now());
             }
             if (session.getStationDock() != null) {
                 dockAvailabilityService.updateDockStatus(session.getStationDock().getId(), StationDockStatus.AVAILABLE);
@@ -195,7 +195,7 @@ public class RideSessionServiceImpl implements RideSessionService {
 
     private RideSessionDetailDTO toDetail(RideSession session) {
         RideSessionDetailDTO detail = modelMapper.map(session, RideSessionDetailDTO.class);
-        if (session.getStatus() == RideSessionStatus.IN_PROGRESS && session.getTimeOut() != null) {
+        if (session.getStatus() == RideSessionStatus.IN_PROGRESS && session.getEndedAt() != null) {
             detail.setStatus("AWAITING_PAYMENT");
         }
         return detail;

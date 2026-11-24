@@ -41,11 +41,11 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
       accessorKey: "issueType",
       cell: ({ getValue }: any) => {
         const typeMap: Record<string, string> = {
-          LOST_TICKET: "Sự cố cũ",
+          OTHER: "Khác",
           WRONG_PLATE: "Sai biển số",
-          OVERTIME: "Quá thời gian thuê",
-          WRONG_PLACE: "Trả xe sai vị trí",
-          UNPAID_EXIT: "Chưa thanh toán cước",
+          RIDE_OVERTIME: "Quá thời gian thuê",
+          WRONG_RETURN_LOCATION: "Trả xe sai vị trí",
+          UNPAID_RIDE: "Chưa thanh toán cước",
         };
         const val = getValue();
         return <span className="font-medium">{typeMap[val] || val}</span>;

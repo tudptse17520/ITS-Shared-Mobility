@@ -10,15 +10,18 @@ import vn.edu.ut.its.dto.mobility.StartRideRequestDTO;
 import vn.edu.ut.its.dto.request.PaymentRequestDTO;
 import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.repository.UserRepository;
+import vn.edu.ut.its.repository.RideSessionRepository;
 import vn.edu.ut.its.service.PaymentService;
 import vn.edu.ut.its.service.RideSessionService;
+import vn.edu.ut.its.service.ReportService;
 import vn.edu.ut.its.service.SharedMobilityService;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "its.demo.seed=true")
 class RideLifecycleTest {
 
     @Autowired
@@ -29,9 +32,15 @@ class RideLifecycleTest {
     private PaymentService payments;
     @Autowired
     private RideSessionService sessions;
+    @Autowired
+    private RideSessionRepository rideSessions;
+    @Autowired
+    private ReportService reports;
 
     @Test
     void chargesTheFinalFareOnlyAfterTheRideEnds() {
+        String today = LocalDate.now().toString();
+        var before = reports.getRideFlowReport(today, today, null);
         Long userId = users.findByUsername("user").orElseThrow().getId();
         var started = mobility.startRide(StartRideRequestDTO.builder()
                 .userId(userId).vehicleCode("ITS-BK-003").build());
@@ -51,9 +60,15 @@ class RideLifecycleTest {
         assertTrue(awaitingPayment.stream().anyMatch(s -> sessionId.equals(s.getId())
                 && "AWAITING_PAYMENT".equals(s.getStatus())
                 && started.getSessionCode().equals(s.getSessionCode())));
+        var ride = rideSessions.findById(sessionId).orElseThrow();
+        ride.setStartedAt(ride.getStartedAt().minusDays(1));
+        rideSessions.save(ride);
+        var flow = reports.getRideFlowReport(today, today, null);
+        assertEquals(before.getTotalRidesStarted(), flow.getTotalRidesStarted());
+        assertEquals(before.getTotalRidesEnded() + 1, flow.getTotalRidesEnded());
 
         var obsoletePayment = new PaymentRequestDTO(
-                sessionId, null, ended.getTotalFee(), PaymentMethod.Cash, FeeType.LOST_TICKET_FINE);
+                sessionId, null, ended.getTotalFee(), PaymentMethod.Cash, FeeType.HISTORICAL_ADJUSTMENT);
         assertThrows(BusinessRuleViolationException.class, () -> payments.createPayment(obsoletePayment, null));
 
         var fare = payments.getRemainingDebt(sessionId).getRemainingFee();

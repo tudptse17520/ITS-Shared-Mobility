@@ -20,11 +20,11 @@ public interface RideSessionRepository extends JpaRepository<RideSession, Long> 
      * @param status        the ride session status to match (IN_PROGRESS)
      * @return true if at least one active ride session exists for vehicles of this type
      */
-    boolean existsByVehicle_VehicleType_IdAndStatus(Long vehicleTypeId, RideSessionStatus status);
+    boolean existsByVehicle_VehicleType_IdAndStatusAndEndedAtIsNull(Long vehicleTypeId, RideSessionStatus status);
 
-    java.util.Optional<RideSession> findFirstByVehicle_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(Long vehicleId, RideSessionStatus status);
+    java.util.Optional<RideSession> findFirstByVehicle_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(Long vehicleId, RideSessionStatus status);
 
-    java.util.List<RideSession> findByUser_IdOrderByTimeInDesc(Long userId);
+    java.util.List<RideSession> findByUser_IdOrderByStartedAtDesc(Long userId);
 
-    java.util.Optional<RideSession> findFirstByUser_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(Long userId, RideSessionStatus status);
+    java.util.Optional<RideSession> findFirstByUser_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(Long userId, RideSessionStatus status);
 }

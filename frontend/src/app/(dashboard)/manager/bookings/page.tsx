@@ -10,11 +10,11 @@ import { useAllBookings } from "@/features/bookings/hooks/use-bookings";
 
 // Mock data bổ sung ngữ cảnh cho các booking (vì Backend chưa trả về đủ các trường)
 const MOCK_CONTEXT: Record<number, Partial<BookingContextData>> = {
-  1: { customerName: "Nguyễn Văn A", customerPhone: "0901 234 567", licensePlate: "51F-123.45", vehicleTypeName: "Ô tô", expectedTimeOut: "2026-07-13T06:30:00" },
-  2: { customerName: "Trần Thị B", customerPhone: "0912 345 678", licensePlate: "59C1-456.78", vehicleTypeName: "Xe máy", expectedTimeOut: "2026-07-13T10:00:00" },
-  3: { customerName: "Lê Hoàng C", customerPhone: "0923 456 789", licensePlate: "51G-789.12", vehicleTypeName: "Ô tô", expectedTimeOut: "2026-07-14T08:00:00" },
-  4: { customerName: "Phạm Minh D", customerPhone: "0934 567 890", licensePlate: "60A1-012.34", vehicleTypeName: "Xe máy", expectedTimeOut: "2026-07-13T18:00:00" },
-  5: { customerName: "Hoàng Thị E", customerPhone: "0945 678 901", licensePlate: "51H-345.67", vehicleTypeName: "Ô tô", expectedTimeOut: "2026-07-13T22:00:00" },
+  1: { customerName: "Nguyễn Văn A", customerPhone: "0901 234 567", licensePlate: "51F-123.45", vehicleTypeName: "Ô tô", plannedEndAt: "2026-07-13T06:30:00" },
+  2: { customerName: "Trần Thị B", customerPhone: "0912 345 678", licensePlate: "59C1-456.78", vehicleTypeName: "Xe máy", plannedEndAt: "2026-07-13T10:00:00" },
+  3: { customerName: "Lê Hoàng C", customerPhone: "0923 456 789", licensePlate: "51G-789.12", vehicleTypeName: "Ô tô", plannedEndAt: "2026-07-14T08:00:00" },
+  4: { customerName: "Phạm Minh D", customerPhone: "0934 567 890", licensePlate: "60A1-012.34", vehicleTypeName: "Xe máy", plannedEndAt: "2026-07-13T18:00:00" },
+  5: { customerName: "Hoàng Thị E", customerPhone: "0945 678 901", licensePlate: "51H-345.67", vehicleTypeName: "Ô tô", plannedEndAt: "2026-07-13T22:00:00" },
 };
 
 export default function ManagerBookingsPage() {
@@ -32,7 +32,7 @@ export default function ManagerBookingsPage() {
         customerPhone: b.customerPhone || mock?.customerPhone || "N/A",
         licensePlate: b.licensePlate || mock?.licensePlate || "Chưa cập nhật",
         vehicleTypeName: b.vehicleTypeName || mock?.vehicleTypeName || "N/A",
-        expectedTimeOut: b.expectedTimeOut || mock?.expectedTimeOut,
+        plannedEndAt: b.plannedEndAt || mock?.plannedEndAt,
       };
     });
 

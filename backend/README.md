@@ -27,7 +27,7 @@ vn\edu\ut\its
    cd backend/
    ```
 2. Set up environment variables:
-   Copy `.env.example` to `.env` and update the database credentials and JWT secret. Use a disposable SQL Server database for integration tests because the demo seeder clears tables at startup.
+   Copy `.env.example` to `.env` and update the database credentials and JWT secret. Set ITS_DEMO_SEED=true only for a disposable demo database. The seeder resets demo data when enabled. For an existing database, see the migration instructions below.
 3. Install dependencies and compile the project:
    ```bash
    .\mvnw.cmd clean compile
@@ -37,3 +37,9 @@ vn\edu\ut\its
    .\mvnw.cmd spring-boot:run
    ```
 The backend server will start on `http://localhost:8080`.
+
+## Upgrade an existing database
+
+Back up the SQL Server database and test the upgrade on a copy. Stop the backend and run [migrate-its-schema.sql](scripts/migrate-its-schema.sql) against the intended database before starting the new version. Leave `ITS_DEMO_SEED` unset or false to preserve existing records. A fresh database can start directly with the current schema.
+
+Historical payment adjustments remain in transaction history and are excluded from ride revenue. Review the upgraded records and start the backend against the copy before rolling out the upgrade.

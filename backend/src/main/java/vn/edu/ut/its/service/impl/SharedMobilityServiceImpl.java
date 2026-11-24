@@ -142,8 +142,8 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .vehicle(vehicle)
                 .createdAt(now)
                 .expiredAt(now.plusMinutes(holdMinutes))
-                .expectedTimeIn(now)
-                .expectedTimeOut(now.plusHours(2))
+                .plannedStartAt(now)
+                .plannedEndAt(now.plusHours(2))
                 .status(BookingStatus.CONFIRMED)
                 .build();
 
@@ -201,7 +201,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 throw new ConflictException("Phương tiện " + vehicle.getVehicleCode() + " đang được người dùng khác đặt giữ.");
             }
             if (matchedBooking != null) {
-                matchedBooking.setStatus(BookingStatus.CHECKED_IN);
+                matchedBooking.setStatus(BookingStatus.USED);
                 bookingRepository.save(matchedBooking);
             }
         } else if (!"AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
@@ -232,7 +232,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .user(user)
                 .vehicle(vehicle)
                 .booking(matchedBooking)
-                .timeIn(now)
+                .startedAt(now)
                 .status(RideSessionStatus.IN_PROGRESS)
                 .startLatitude(startLat)
                 .startLongitude(startLng)
@@ -263,7 +263,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + sessionId));
 
-        if (session.getTimeOut() != null) {
+        if (session.getEndedAt() != null) {
             return mapToRideSessionDTO(session);
         }
 
@@ -295,11 +295,11 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         vehicle.setFleetStatus(battery < 20 ? "LOW_BATTERY" : "AVAILABLE");
         vehicleRepository.save(vehicle);
 
-        session.setTimeOut(now);
+        session.setEndedAt(now);
         session.setEndLatitude(endLat);
         session.setEndLongitude(endLng);
         session.setEndBatteryLevel(battery);
-        BigDecimal totalFee = calculateRideFee(vehicle, session.getTimeIn(), now, session.getDistanceKm());
+        BigDecimal totalFee = calculateRideFee(vehicle, session.getStartedAt(), now, session.getDistanceKm());
         session.setTotalFee(totalFee);
         // Trạng thái giữ IN_PROGRESS cho tới khi PaymentService hoàn tất thanh toán (hoặc Cash/VNPay IPN)
         RideSession updatedSession = rideSessionRepository.save(session);
@@ -332,7 +332,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     @Transactional(readOnly = true)
     public RideSessionResponseDTO getActiveRideForCurrentUser(Long userId) {
         User user = resolveUser(userId);
-        return rideSessionRepository.findFirstByUser_IdAndStatusAndTimeOutIsNullOrderByTimeInDesc(user.getId(), RideSessionStatus.IN_PROGRESS)
+        return rideSessionRepository.findFirstByUser_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(user.getId(), RideSessionStatus.IN_PROGRESS)
                 .map(this::mapToRideSessionDTO)
                 .orElse(null);
     }
@@ -341,7 +341,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     @Transactional(readOnly = true)
     public List<RideSessionResponseDTO> getRideHistory(Long userId) {
         User user = resolveUser(userId);
-        return rideSessionRepository.findByUser_IdOrderByTimeInDesc(user.getId()).stream()
+        return rideSessionRepository.findByUser_IdOrderByStartedAtDesc(user.getId()).stream()
                 .map(this::mapToRideSessionDTO)
                 .collect(Collectors.toList());
     }
@@ -360,12 +360,12 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không xác định được người dùng thực hiện giao dịch."));
     }
 
-    private BigDecimal calculateRideFee(Vehicle vehicle, LocalDateTime timeIn, LocalDateTime timeOut, Double distanceKm) {
+    private BigDecimal calculateRideFee(Vehicle vehicle, LocalDateTime startedAt, LocalDateTime endedAt, Double distanceKm) {
         PricingPolicy policy = resolvePricingPolicy(vehicle);
         BigDecimal unlockFee = policy != null ? policy.getBasePrice() : DEFAULT_UNLOCK_FEE;
         BigDecimal hourlyRate = policy != null ? policy.getExtraFeePerHour() : DEFAULT_HOURLY_RATE;
 
-        long minutes = Math.max(1, Duration.between(timeIn, timeOut).toMinutes());
+        long minutes = Math.max(1, Duration.between(startedAt, endedAt).toMinutes());
         // Tính theo block phút dựa trên đơn giá giờ (tối thiểu 1.000đ phí thời gian)
         BigDecimal timeFee = hourlyRate
                 .multiply(BigDecimal.valueOf(minutes))
@@ -423,10 +423,10 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
 
     private RideSessionResponseDTO mapToRideSessionDTO(RideSession s) {
         Vehicle v = s.getVehicle();
-        LocalDateTime effectiveEnd = s.getTimeOut() != null ? s.getTimeOut() : LocalDateTime.now();
-        long durationMinutes = Math.max(1, Duration.between(s.getTimeIn(), effectiveEnd).toMinutes());
+        LocalDateTime effectiveEnd = s.getEndedAt() != null ? s.getEndedAt() : LocalDateTime.now();
+        long durationMinutes = Math.max(1, Duration.between(s.getStartedAt(), effectiveEnd).toMinutes());
         BigDecimal estimated = s.getTotalFee() != null ? s.getTotalFee()
-                : calculateRideFee(v, s.getTimeIn(), effectiveEnd, s.getDistanceKm());
+                : calculateRideFee(v, s.getStartedAt(), effectiveEnd, s.getDistanceKm());
 
         BigDecimal paidAmount = paymentCustomRepository.sumSuccessfulAmountBySessionId(s.getId());
         boolean isPaid = s.getStatus() == RideSessionStatus.COMPLETED
@@ -451,12 +451,12 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .distanceKm(s.getDistanceKm() != null ? s.getDistanceKm() : 0.0)
                 .currentBatteryLevel(v != null ? v.getBatteryLevel() : null)
                 .lockStatus(v != null ? v.getLockStatus() : null)
-                .startTime(s.getTimeIn().format(DATE_FORMAT))
-                .endTime(s.getTimeOut() != null ? s.getTimeOut().format(DATE_FORMAT) : null)
+                .startTime(s.getStartedAt().format(DATE_FORMAT))
+                .endTime(s.getEndedAt() != null ? s.getEndedAt().format(DATE_FORMAT) : null)
                 .durationMinutes(durationMinutes)
                 .estimatedFee(estimated)
                 .totalFee(s.getTotalFee())
-                .status(s.getTimeOut() != null && !isPaid ? "AWAITING_PAYMENT" : s.getStatus().name())
+                .status(s.getEndedAt() != null && !isPaid ? "AWAITING_PAYMENT" : s.getStatus().name())
                 .paid(isPaid)
                 .build();
     }
