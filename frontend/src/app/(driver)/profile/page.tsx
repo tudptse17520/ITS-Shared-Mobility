@@ -251,7 +251,7 @@ function PaymentHistory() {
               {/* Info */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{payment.feeType || "Phí gửi xe"}</span>
+                  <span className="text-sm font-medium">{payment.feeType || "Cước chuyến đi"}</span>
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}>
                     {config.label}
                   </span>

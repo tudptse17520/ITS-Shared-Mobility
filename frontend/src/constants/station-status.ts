@@ -1,6 +1,6 @@
 // ---------------------------------------------
 // Station Status Constants
-// Trạng thái trạm xe gửi xe
+// Trạng thái trạm xe
 // ---------------------------------------------
 
 export enum StationStatus {

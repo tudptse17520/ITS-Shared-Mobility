@@ -34,11 +34,11 @@ export function FeedbackFilter({ onSearchChange, onIssueTypeChange, onStatusChan
           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="ALL">Tất cả loại</option>
-          <option value="LOST_TICKET">Mất thẻ</option>
+          <option value="LOST_TICKET">Sự cố cũ</option>
           <option value="WRONG_PLATE">Sai biển số</option>
-          <option value="OVERTIME">Quá giờ</option>
-          <option value="WRONG_PLACE">Đỗ sai vị trí</option>
-          <option value="UNPAID_EXIT">Chưa thanh toán</option>
+          <option value="OVERTIME">Quá thời gian thuê</option>
+          <option value="WRONG_PLACE">Trả xe sai vị trí</option>
+          <option value="UNPAID_EXIT">Chưa thanh toán cước</option>
         </select>
       </div>
 

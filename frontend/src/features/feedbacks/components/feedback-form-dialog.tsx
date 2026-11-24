@@ -16,6 +16,7 @@ import { feedbackFormSchema, FeedbackFormValues } from "../schemas/feedback.sche
 import { useFeedbackActions } from "../hooks/use-feedback-actions";
 import { useSessionsList } from "@/features/ride-sessions/hooks/use-ride-sessions";
 import { Portal } from "@/components/common/portal";
+import { SESSION_STATUS_LABELS } from "@/constants/session-status";
 
 interface FeedbackFormDialogProps {
   feedback: Feedback | null;
@@ -46,7 +47,7 @@ export function FeedbackFormDialog({
     resolver: zodResolver(feedbackFormSchema),
     defaultValues: {
       rideSessionId: 0,
-      issueType: "LOST_TICKET",
+      issueType: "WRONG_PLACE",
       description: "",
       status: "REPORTED",
     },
@@ -63,7 +64,7 @@ export function FeedbackFormDialog({
     } else if (!isOpen) {
       reset({
         rideSessionId: 0,
-        issueType: "LOST_TICKET",
+        issueType: "WRONG_PLACE",
         description: "",
         status: "REPORTED",
       });
@@ -142,7 +143,7 @@ export function FeedbackFormDialog({
 
           <FormFields>
             <div className="space-y-2">
-              <Label htmlFor="rideSessionId">ID Lượt gửi xe <span className="text-destructive">*</span></Label>
+              <Label htmlFor="rideSessionId">Chuyến đi <span className="text-destructive">*</span></Label>
               {!isEditing && !readOnly && sessions.length > 0 ? (
                 <select
                   id="rideSessionId"
@@ -150,10 +151,10 @@ export function FeedbackFormDialog({
                   disabled={isPending}
                   className={`flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.rideSessionId ? "border-destructive" : ""}`}
                 >
-                  <option value={0} disabled>-- Chọn lượt gửi xe --</option>
+                  <option value={0} disabled>-- Chọn chuyến đi --</option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      #{s.id} - {s.plate} ({s.status === "IN_PROGRESS" ? "Đang gửi" : "Đã hoàn tất"})
+                      #{s.id} - {s.plate} ({SESSION_STATUS_LABELS[s.status]})
                     </option>
                   ))}
                 </select>
@@ -180,11 +181,11 @@ export function FeedbackFormDialog({
                 disabled={isPending || readOnly || isEditing}
                 className={`flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.issueType ? "border-destructive" : ""}`}
               >
-                <option value="LOST_TICKET">Mất thẻ</option>
+                {feedback?.issueType === "LOST_TICKET" && <option value="LOST_TICKET">Sự cố cũ</option>}
                 <option value="WRONG_PLATE">Sai biển số</option>
-                <option value="OVERTIME">Quá giờ</option>
-                <option value="WRONG_PLACE">Đỗ sai vị trí</option>
-                <option value="UNPAID_EXIT">Chưa thanh toán</option>
+                <option value="OVERTIME">Quá thời gian thuê</option>
+                <option value="WRONG_PLACE">Trả xe sai vị trí</option>
+                <option value="UNPAID_EXIT">Chưa thanh toán cước</option>
               </select>
               {errors.issueType && (
                 <p className="text-sm text-destructive">{errors.issueType.message}</p>
