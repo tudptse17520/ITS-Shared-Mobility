@@ -10,6 +10,7 @@
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
+        android:icon="@mipmap/ic_its_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.ProjectItsMobility"
         android:usesCleartextTraffic="true">
