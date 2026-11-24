@@ -20,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import vn.edu.ut.its.config.VnpayConfig;
+import vn.edu.ut.its.constant.BookingStatus;
 import vn.edu.ut.its.constant.FeeType;
 import vn.edu.ut.its.constant.PaymentMethod;
 import vn.edu.ut.its.constant.PaymentStatus;
+import vn.edu.ut.its.constant.RideSessionStatus;
 import vn.edu.ut.its.dto.request.ManualStatusRequestDTO;
 import vn.edu.ut.its.dto.request.PaymentRequestDTO;
 import vn.edu.ut.its.dto.response.PaymentListResponseDTO;
@@ -31,6 +33,7 @@ import vn.edu.ut.its.entity.Booking;
 import vn.edu.ut.its.entity.RideSession;
 import vn.edu.ut.its.entity.Payment;
 import vn.edu.ut.its.entity.PricingPolicy;
+import vn.edu.ut.its.entity.User;
 import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.exception.InvalidStateTransitionException;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
@@ -38,6 +41,8 @@ import vn.edu.ut.its.repository.BookingRepository;
 import vn.edu.ut.its.repository.RideSessionRepository;
 import vn.edu.ut.its.repository.PaymentCustomRepository;
 import vn.edu.ut.its.repository.PaymentRepository;
+import vn.edu.ut.its.repository.UserRepository;
+import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.PaymentService;
 import vn.edu.ut.its.util.VnpayUtil;
 
@@ -54,6 +59,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentCustomRepository paymentCustomRepository;
     private final RideSessionRepository rideSessionRepository;
     private final BookingRepository bookingRepository;
+    private final UserRepository userRepository;
     private final VnpayConfig vnpayConfig;
 
     private static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
@@ -93,8 +99,16 @@ public class PaymentServiceImpl implements PaymentService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                     "Không tìm thấy chuyến đi với ID: " + requestDTO.getRideSessionId()));
 
+            SecurityUtils.assertAdminOrOwner(
+                    rideSession.getUser() != null ? rideSession.getUser().getId() : null,
+                    userRepository,
+                    "Bạn không có quyền thanh toán cho chuyến đi của người dùng khác.");
+
             if (feeType == FeeType.RIDE_FEE) {
                 validateOverpayment(requestDTO, rideSession);
+            }
+            if (paymentMethod == PaymentMethod.Vnpay) {
+                failPriorPendingPaymentsForRide(rideSession.getId());
             }
         }
 
@@ -102,7 +116,16 @@ public class PaymentServiceImpl implements PaymentService {
             booking = bookingRepository.findById(requestDTO.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                     "Không tìm thấy đơn đặt chỗ với ID: " + requestDTO.getBookingId()));
+
+            SecurityUtils.assertAdminOrOwner(
+                    booking.getUser() != null ? booking.getUser().getId() : null,
+                    userRepository,
+                    "Bạn không có quyền thanh toán cho lượt đặt giữ của người dùng khác.");
+
             validateBookingDeposit(requestDTO.getAmount(), booking);
+            if (paymentMethod == PaymentMethod.Vnpay) {
+                failPriorPendingPaymentsForBooking(booking.getId());
+            }
         }
 
         // 6. Build Payment entity
@@ -166,6 +189,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         List<Payment> payments = paymentCustomRepository.findByFilters(paymentMethod, parsedStatus, parsedFromDateTime);
 
+        User currentUser = SecurityUtils.getAuthenticatedUser(userRepository).orElse(null);
+        if (currentUser != null && !SecurityUtils.isAdmin(currentUser)) {
+            Long uid = currentUser.getId();
+            payments = payments.stream()
+                    .filter(p -> isOwnedByUser(p, uid))
+                    .collect(Collectors.toList());
+        }
+
         List<PaymentResponseDTO> data = payments.stream()
                 .map(this::mapToResponseDTO)
                 .collect(Collectors.toList());
@@ -185,6 +216,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                 "Không tìm thấy giao dịch thanh toán với ID: " + id));
 
+        SecurityUtils.assertAdminOrOwner(resolvePaymentOwnerId(payment), userRepository,
+                "Bạn không có quyền xem biên lai thanh toán của người dùng khác.");
+
         return mapToResponseDTO(payment);
     }
 
@@ -193,6 +227,11 @@ public class PaymentServiceImpl implements PaymentService {
     public vn.edu.ut.its.dto.response.PaymentDebtResponseDTO getRemainingDebt(Long sessionId) {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + sessionId));
+
+        SecurityUtils.assertAdminOrOwner(
+                session.getUser() != null ? session.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền xem công nợ chuyến đi của người dùng khác.");
 
         BigDecimal totalFee = requireFinalRideFee(session);
 
@@ -272,6 +311,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                 "Không tìm thấy giao dịch thanh toán với ID: " + id));
 
+        SecurityUtils.assertAdminOrOwner(resolvePaymentOwnerId(payment), userRepository,
+                "Bạn không có quyền hủy giao dịch thanh toán của người dùng khác.");
+
         if (payment.getStatus() != PaymentStatus.PENDING) {
             throw new InvalidStateTransitionException(
                     "Chỉ có thể hủy giao dịch đang ở trạng thái PENDING. Giao dịch hiện tại đang ở trạng thái "
@@ -287,6 +329,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public ResponseEntity<String> processVnpayIpn(HttpServletRequest request) {
         try {
+            if (vnpayConfig.getSecretKey() == null || vnpayConfig.getSecretKey().isBlank()) {
+                return ResponseEntity.ok("{\"RspCode\":\"97\",\"Message\":\"Invalid Checksum\"}");
+            }
+
             Map<String, String> fields = new HashMap<>();
             for (java.util.Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
                 String fieldName = params.nextElement();
@@ -297,61 +343,80 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-            if (fields.containsKey("vnp_SecureHashType")) {
-                fields.remove("vnp_SecureHashType");
+            if (vnp_SecureHash == null || vnp_SecureHash.isBlank()) {
+                return ResponseEntity.ok("{\"RspCode\":\"97\",\"Message\":\"Invalid Checksum\"}");
             }
-            if (fields.containsKey("vnp_SecureHash")) {
-                fields.remove("vnp_SecureHash");
-            }
+            fields.remove("vnp_SecureHashType");
+            fields.remove("vnp_SecureHash");
 
             // Validate signature
             String signValue = VnpayUtil.hashAllFields(fields, vnpayConfig.getSecretKey());
-            if (signValue.equals(vnp_SecureHash)) {
-
-                Long paymentId = Long.parseLong(fields.get("vnp_TxnRef"));
-                Payment payment = paymentRepository.findById(paymentId).orElse(null);
-
-                if (payment == null) {
-                    return ResponseEntity.ok("{\"RspCode\":\"01\",\"Message\":\"Order not found\"}");
-                }
-
-                // Check amount (VNPAY sends amount * 100)
-                BigDecimal vnpAmount = new BigDecimal(fields.get("vnp_Amount")).divide(new BigDecimal("100"));
-                if (payment.getAmount().compareTo(vnpAmount) != 0) {
-                    return ResponseEntity.ok("{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}");
-                }
-
-                if (payment.getStatus() != PaymentStatus.PENDING) {
-                    return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
-                }
-
-                if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
-                    // Success
-                    payment.setStatus(PaymentStatus.SUCCESS);
-                    payment.setPaymentTime(LocalDateTime.now());
-                } else {
-                    // Failed
-                    payment.setStatus(PaymentStatus.FAILED);
-                }
-
-                paymentRepository.save(payment);
-
-                // If this payment was for a Booking, we should update the booking status to CONFIRMED
-                if (payment.getStatus() == PaymentStatus.SUCCESS && payment.getBooking() != null) {
-                    Booking booking = payment.getBooking();
-                    booking.setStatus(vn.edu.ut.its.constant.BookingStatus.CONFIRMED);
-                    bookingRepository.save(booking);
-                }
-
-                // If this payment was for a RideSession, check if fully paid to complete it
-                if (payment.getStatus() == PaymentStatus.SUCCESS && payment.getRideSession() != null) {
-                    checkAndCompleteRideSession(payment.getRideSession());
-                }
-
-                return ResponseEntity.ok("{\"RspCode\":\"00\",\"Message\":\"Confirm Success\"}");
-            } else {
+            if (!signValue.equalsIgnoreCase(vnp_SecureHash)) {
                 return ResponseEntity.ok("{\"RspCode\":\"97\",\"Message\":\"Invalid Checksum\"}");
             }
+
+            Long paymentId;
+            try {
+                paymentId = Long.parseLong(fields.get("vnp_TxnRef"));
+            } catch (Exception e) {
+                return ResponseEntity.ok("{\"RspCode\":\"01\",\"Message\":\"Order not found\"}");
+            }
+
+            Payment payment = paymentRepository.findById(paymentId).orElse(null);
+            if (payment == null) {
+                return ResponseEntity.ok("{\"RspCode\":\"01\",\"Message\":\"Order not found\"}");
+            }
+
+            BigDecimal vnpAmount;
+            try {
+                vnpAmount = new BigDecimal(fields.get("vnp_Amount")).divide(new BigDecimal("100"));
+            } catch (Exception e) {
+                return ResponseEntity.ok("{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}");
+            }
+            if (payment.getAmount().compareTo(vnpAmount) != 0) {
+                return ResponseEntity.ok("{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}");
+            }
+
+            if (payment.getStatus() != PaymentStatus.PENDING) {
+                return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
+            }
+
+            if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
+                // Guard against duplicate settlement after the ride/booking is already paid
+                if (payment.getRideSession() != null) {
+                    RideSession session = payment.getRideSession();
+                    if (session.getStatus() == RideSessionStatus.COMPLETED || remainingDebtForSession(session).compareTo(payment.getAmount()) < 0) {
+                        payment.setStatus(PaymentStatus.FAILED);
+                        paymentRepository.save(payment);
+                        return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
+                    }
+                }
+                if (payment.getBooking() != null && paymentCustomRepository.sumSuccessfulAmountByBookingId(payment.getBooking().getId()).signum() > 0) {
+                    payment.setStatus(PaymentStatus.FAILED);
+                    paymentRepository.save(payment);
+                    return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
+                }
+                payment.setStatus(PaymentStatus.SUCCESS);
+                payment.setPaymentTime(LocalDateTime.now());
+            } else {
+                payment.setStatus(PaymentStatus.FAILED);
+            }
+
+            paymentRepository.save(payment);
+
+            // If this payment was for a Booking, confirm it
+            if (payment.getStatus() == PaymentStatus.SUCCESS && payment.getBooking() != null) {
+                Booking booking = payment.getBooking();
+                booking.setStatus(BookingStatus.CONFIRMED);
+                bookingRepository.save(booking);
+            }
+
+            // If this payment was for a RideSession, check if fully paid to complete it
+            if (payment.getStatus() == PaymentStatus.SUCCESS && payment.getRideSession() != null) {
+                checkAndCompleteRideSession(payment.getRideSession());
+            }
+
+            return ResponseEntity.ok("{\"RspCode\":\"00\",\"Message\":\"Confirm Success\"}");
         } catch (Exception e) {
             return ResponseEntity.ok("{\"RspCode\":\"99\",\"Message\":\"Unknown error\"}");
         }
@@ -360,9 +425,11 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public ResponseEntity<String> processVnpayReturn(HttpServletRequest request) {
         ResponseEntity<String> ipnResult = processVnpayIpn(request);
+        String ipnBody = ipnResult.getBody() != null ? ipnResult.getBody() : "";
         String responseCode = request.getParameter("vnp_ResponseCode");
         String txnRef = request.getParameter("vnp_TxnRef");
-        boolean success = "00".equals(responseCode);
+        boolean ipnConfirmed = ipnBody.contains("\"RspCode\":\"00\"") || ipnBody.contains("\"RspCode\":\"02\"");
+        boolean success = "00".equals(responseCode) && ipnConfirmed;
         String title = success ? "Thanh toán VNPay thành công!" : "Thanh toán VNPay chưa hoàn tất";
         String color = success ? "#16a34a" : "#dc2626";
         String html = """
@@ -461,6 +528,12 @@ public class PaymentServiceImpl implements PaymentService {
      * 100% với mức niêm yết.
      */
     private void validateBookingDeposit(BigDecimal amount, Booking booking) {
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new BusinessRuleViolationException("Đơn đặt giữ xe hiện ở trạng thái " + booking.getStatus() + ", không thể thanh toán tiền cọc.");
+        }
+        if (paymentCustomRepository.sumSuccessfulAmountByBookingId(booking.getId()).signum() > 0) {
+            throw new BusinessRuleViolationException("Đơn đặt giữ xe này đã được thanh toán tiền cọc trước đó.");
+        }
         if (booking.getVehicle() == null || booking.getVehicle().getVehicleType() == null) {
             throw new BusinessRuleViolationException("Không xác định được loại xe để tra cứu tiền cọc.");
         }
@@ -482,21 +555,61 @@ public class PaymentServiceImpl implements PaymentService {
 
     /**
      * E3: Validate Overpayment Violation. Kiểm tra tổng tiền thanh toán không
-     * vượt quá total_fee của chuyến đi.
+     * vượt quá total_fee còn nợ của chuyến đi.
      */
     private void validateOverpayment(PaymentRequestDTO dto, RideSession session) {
-        BigDecimal totalFee = requireFinalRideFee(session);
-
-        BigDecimal sumPaid = paymentCustomRepository.sumSuccessfulAmountBySessionId(session.getId());
-        if (session.getBooking() != null) {
-            sumPaid = sumPaid.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(session.getBooking().getId()));
+        if (session.getStatus() == RideSessionStatus.COMPLETED) {
+            throw new BusinessRuleViolationException("Chuyến đi này đã hoàn tất thanh toán.");
         }
-        BigDecimal remainingDebt = totalFee.subtract(sumPaid);
-
+        BigDecimal remainingDebt = remainingDebtForSession(session);
+        if (remainingDebt.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessRuleViolationException("Chuyến đi này không còn dư nợ cần thanh toán.");
+        }
         if (dto.getAmount().compareTo(remainingDebt) > 0) {
             throw new BusinessRuleViolationException(
                     "Tổng số tiền thanh toán vượt quá cước chuyến đi.");
         }
+    }
+
+    private BigDecimal remainingDebtForSession(RideSession session) {
+        BigDecimal totalFee = requireFinalRideFee(session);
+        BigDecimal sumPaid = paymentCustomRepository.sumSuccessfulAmountBySessionId(session.getId());
+        if (session.getBooking() != null) {
+            sumPaid = sumPaid.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(session.getBooking().getId()));
+        }
+        BigDecimal remaining = totalFee.subtract(sumPaid);
+        return remaining.compareTo(BigDecimal.ZERO) > 0 ? remaining : BigDecimal.ZERO;
+    }
+
+    private void failPriorPendingPaymentsForRide(Long sessionId) {
+        List<Payment> pending = paymentRepository.findByRideSession_IdAndStatus(sessionId, PaymentStatus.PENDING);
+        if (!pending.isEmpty()) {
+            pending.forEach(p -> p.setStatus(PaymentStatus.FAILED));
+            paymentRepository.saveAll(pending);
+        }
+    }
+
+    private void failPriorPendingPaymentsForBooking(Long bookingId) {
+        List<Payment> pending = paymentRepository.findByBooking_IdAndStatus(bookingId, PaymentStatus.PENDING);
+        if (!pending.isEmpty()) {
+            pending.forEach(p -> p.setStatus(PaymentStatus.FAILED));
+            paymentRepository.saveAll(pending);
+        }
+    }
+
+    private Long resolvePaymentOwnerId(Payment payment) {
+        if (payment.getRideSession() != null && payment.getRideSession().getUser() != null) {
+            return payment.getRideSession().getUser().getId();
+        }
+        if (payment.getBooking() != null && payment.getBooking().getUser() != null) {
+            return payment.getBooking().getUser().getId();
+        }
+        return null;
+    }
+
+    private boolean isOwnedByUser(Payment payment, Long userId) {
+        Long ownerId = resolvePaymentOwnerId(payment);
+        return ownerId != null && ownerId.equals(userId);
     }
 
     private BigDecimal requireFinalRideFee(RideSession session) {
