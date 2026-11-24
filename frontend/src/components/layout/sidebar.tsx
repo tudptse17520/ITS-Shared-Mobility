@@ -1,97 +1,85 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  MapPin,
-  LogOut
-} from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { useId } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { SignOutIcon as LogOut } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ADMIN_NAV } from "@/config/navigation";
-import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 import { removeCookie } from "@/utils/storage";
+import { AdminBrand } from "./brand";
 
-export function Sidebar({ className }: { className?: string }) {
+export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const reducedMotion = useReducedMotion();
+  const groupId = useId();
+
+  return (
+    <LayoutGroup id={groupId}>
+      <nav aria-label="Điều hướng quản trị" className="space-y-5 px-2">
+        {ADMIN_NAV.map((group) => (
+          <div key={group.label}>
+            <h2 className="mb-2 px-3 text-xs font-semibold text-muted-foreground">{group.label}</h2>
+            <div className="grid gap-0.5">
+              {group.items.map(({ title, href, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(href + "/");
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={onNavigate}
+                    className={cn(
+                      "its-interactive relative isolate flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium",
+                      active ? "text-sidebar-primary-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent",
+                    )}
+                  >
+                    {active && (
+                      <motion.span
+                        aria-hidden="true"
+                        layoutId={reducedMotion ? undefined : "active-navigation"}
+                        transition={{ type: "spring", stiffness: 430, damping: 38 }}
+                        className="absolute inset-0 -z-10 rounded-lg bg-sidebar-primary"
+                      />
+                    )}
+                    <Icon className="size-[17px] shrink-0" strokeWidth={1.8} />
+                    {title}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </LayoutGroup>
+  );
+}
+
+export function Sidebar() {
   const router = useRouter();
   const clearUser = useAuthStore((state) => state.clearUser);
 
-  const handleLogout = () => {
+  function logout() {
     removeCookie("access_token");
     clearUser();
     router.replace("/login");
-  };
-
-  const navGroups = ADMIN_NAV;
+  }
 
   return (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r bg-sidebar md:flex",
-        className
-      )}
-    >
-      <div className="flex h-16 items-center border-b px-6">
-        <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <MapPin className="h-5 w-5" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
-            ITS Admin
-          </span>
-        </Link>
+    <aside className="operations-sidebar hidden min-h-0 flex-col border-r px-2.5 py-3 md:flex">
+      <div className="mx-2 mb-4 border-b px-1 pt-1.5 pb-4">
+        <AdminBrand />
       </div>
-
-      <ScrollArea className="flex-1 py-4">
-        <nav className="px-4">
-          {navGroups.map((group, index) => (
-            <div key={index} className={cn("mb-4", index > 0 && "pt-2")}>
-              <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                {group.label}
-              </h4>
-              <div className="grid gap-1">
-                {group.items.map((item, itemIndex) => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  return (
-                    <Link key={itemIndex} href={item.href}>
-                      <span
-                        className={cn(
-                          "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                          isActive ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-sidebar-foreground"
-                        )}
-                      >
-                        <div className="flex items-center">
-                          <Icon className={cn("mr-3 h-5 w-5", isActive ? "text-primary" : "text-sidebar-foreground/70")} />
-                          {item.title}
-                        </div>
-                        {item.title === "Sự cố" && (
-                          <span className="flex h-5 items-center justify-center rounded-full bg-rose-500/15 px-1.5 text-[11px] font-bold text-rose-500 min-w-5">
-                            2
-                          </span>
-                        )}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
+      <ScrollArea className="min-h-0 flex-1">
+        <AdminNavigation />
       </ScrollArea>
-
-      <div className="border-t p-4">
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-3 h-5 w-5" />
-          Đăng xuất
+      <div className="mx-2 mt-3 border-t pt-3">
+        <Button variant="ghost" className="h-10 w-full justify-start px-3 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={logout}>
+          <LogOut /> Đăng xuất
         </Button>
       </div>
     </aside>
