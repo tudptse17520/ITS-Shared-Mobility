@@ -5,20 +5,24 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Payment
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import vn.edu.ut.its.mobility.model.RideSessionDto
+import vn.edu.ut.its.mobility.ui.ItsButton
+import vn.edu.ut.its.mobility.ui.ItsPanel
+import vn.edu.ut.its.mobility.ui.ItsNotice
 import vn.edu.ut.its.mobility.ui.MainViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -29,6 +33,7 @@ fun PaymentVnpayScreen(
     ride: RideSessionDto,
     viewModel: MainViewModel
 ) {
+    val colors = MaterialTheme.colorScheme
     val vndFormat = remember { NumberFormat.getNumberInstance(Locale("vi", "VN")) }
     val amount = ride.totalFee ?: ride.estimatedFee
     val paymentUrl = viewModel.vnpayPaymentUrl
@@ -36,7 +41,8 @@ fun PaymentVnpayScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Thanh toán Cước chuyến đi", fontWeight = FontWeight.Bold) }
+                title = { Text("Thanh toán", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->
@@ -53,110 +59,74 @@ fun PaymentVnpayScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 )
-                Button(
+                ItsButton(
                     onClick = { viewModel.finishVnpayFlow() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
                 ) {
-                    Text("Hoàn tất & Quay về Bản đồ")
+                    Text("Quay về bản đồ")
                 }
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color(0xFF16A34A),
-                    modifier = Modifier.size(64.dp)
-                )
-                Text(
-                    text = "Đã khóa xe an toàn!",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Card(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    modifier = Modifier.fillMaxWidth()
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+                Column(
+                    Modifier.widthIn(max = 600.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Surface(
+                        color = colors.primaryContainer,
+                        contentColor = colors.onPrimaryContainer,
+                        shape = MaterialTheme.shapes.extraLarge,
                     ) {
-                        InvoiceRow("Mã chuyến", ride.sessionCode)
-                        InvoiceRow("Phương tiện", "${ride.vehicleCode} · ${ride.vehicleBrand}")
-                        InvoiceRow("Thời gian thuê", "${ride.durationMinutes} phút")
-                        InvoiceRow("Quãng đường", "${ride.distanceKm} km")
-                        HorizontalDivider()
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Tổng tiền thanh toán", fontWeight = FontWeight.Bold)
-                            Text(
-                                text = "${vndFormat.format(amount)} đ",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F766E),
-                                style = MaterialTheme.typography.titleLarge
-                            )
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(20.dp), tint = colors.primary)
+                                Text("Đã kết thúc chuyến đi", color = colors.onPrimaryContainer, style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Text("Cước chuyến đi", style = MaterialTheme.typography.labelLarge)
+                            Text("${vndFormat.format(amount)} đ", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                         }
                     }
-                }
-
-                viewModel.errorMessage?.let { err ->
-                    Text(err, color = MaterialTheme.colorScheme.error)
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Button(
-                    onClick = { viewModel.initiatePayment("Vnpay") },
-                    enabled = !viewModel.isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF005BAA)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Default.Payment, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Thanh toán qua VNPay Sandbox", fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = { viewModel.initiatePayment("Cash") },
-                    enabled = !viewModel.isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text("Thanh toán nhanh (Demo / Tiền mặt)")
+                    ItsPanel {
+                        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Chi tiết chuyến đi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            InvoiceRow("Mã chuyến", ride.sessionCode)
+                            InvoiceRow("Xe", listOfNotNull(ride.vehicleCode, ride.vehicleBrand).joinToString(" · "))
+                            InvoiceRow("Thời gian", "${ride.durationMinutes} phút")
+                            InvoiceRow("Quãng đường", "${ride.distanceKm} km")
+                        }
+                    }
+                    ItsNotice(viewModel.errorMessage, isError = true)
+                    ItsButton(
+                        onClick = { viewModel.initiatePayment("Vnpay") },
+                        enabled = !viewModel.isLoading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    ) {
+                        Icon(Icons.Outlined.Payment, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Thanh toán qua VNPay", fontWeight = FontWeight.SemiBold)
+                    }
+                    ItsButton(
+                        onClick = { viewModel.initiatePayment("Cash") },
+                        enabled = !viewModel.isLoading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        outlined = true,
+                    ) {
+                        Text("Trả bằng tiền mặt")
+                    }
                 }
             }
         }
     }
 }
 
+
 @Composable
 private fun InvoiceRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = Color(0xFF64748B))
-        Text(value, fontWeight = FontWeight.Medium)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(label, Modifier.weight(.75f), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(1.25f), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
     }
 }
 
