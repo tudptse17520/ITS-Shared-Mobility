@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { PlusIcon as Plus } from "@phosphor-icons/react/ssr";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
