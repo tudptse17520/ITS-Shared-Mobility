@@ -1,40 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import axiosClient from "@/lib/axios-client";
-import { VehicleType, VehicleTypeRequest } from "@/features/vehicle-types/types/vehicle-type.type";
+import type { VehicleType, VehicleTypeRequest } from "@/features/vehicle-types/types/vehicle-type.type";
+import type { FleetVehicleItem } from "@/services/mobility.service";
 
 const BASE_PATH = "/vehicle-types";
 
 export const getVehicleTypes = async (): Promise<VehicleType[]> => {
-  const [vehicleTypesRes, zonesRes, occupancyRes] = await Promise.all([
+  const [vehicleTypesRes, fleetRes] = await Promise.all([
     axiosClient.get<VehicleType[]>(BASE_PATH),
-    axiosClient.get<any[]>("/station-zones").catch(() => ({ data: [] })),
-    axiosClient.get<any>("/reports/occupancy").catch(() => ({ data: { details: [] } }))
+    axiosClient.get<FleetVehicleItem[]>("/mobility/vehicles").catch(() => ({ data: [] as FleetVehicleItem[] })),
   ]);
 
   const vehicleTypes = vehicleTypesRes.data;
-  const zones = zonesRes.data || [];
-  const occupancyDetails = occupancyRes.data?.details || [];
+  const fleet = fleetRes.data || [];
 
-  // Tạo map tra cứu số chỗ đang bị chiếm dụng theo tên tầng
-  const occupiedMap = new Map<string, number>();
-  occupancyDetails.forEach((d: any) => {
-    if (d.zoneName && d.occupiedDocks !== undefined) {
-      occupiedMap.set(d.zoneName, d.occupiedDocks);
+  const activeByType = new Map<number, number>();
+  for (const vehicle of fleet) {
+    if (vehicle.vehicleTypeId != null && (vehicle.fleetStatus === "IN_USE" || vehicle.fleetStatus === "RESERVED")) {
+      activeByType.set(vehicle.vehicleTypeId, (activeByType.get(vehicle.vehicleTypeId) ?? 0) + 1);
     }
-  });
+  }
 
-  return vehicleTypes.map(vt => {
-    const activeSessionsCount = zones
-      .filter(f => f.vehicleTypeId === vt.id)
-      .reduce((sum, f) => sum + (occupiedMap.get(f.zoneName) || 0), 0);
-    
-    return {
-      ...vt,
-      activeSessionsCount
-    };
-  });
+  return vehicleTypes.map((vt) => ({
+    ...vt,
+    activeSessionsCount: activeByType.get(vt.id) ?? 0,
+  }));
 };
 
 export const createVehicleType = async (data: VehicleTypeRequest): Promise<VehicleType> => {

@@ -19,7 +19,7 @@ export function BookingDetailDialog({ booking, isOpen, onClose }: BookingDetailD
     if (!d) return "N/A";
     try {
       return format(parseISO(d), "dd/MM/yyyy HH:mm");
-    } catch (e) {
+    } catch {
       return d;
     }
   };
@@ -70,10 +70,10 @@ export function BookingDetailDialog({ booking, isOpen, onClose }: BookingDetailD
               </div>
 
               <div className="grid grid-cols-3 gap-4 pb-4 border-b">
-                <div className="text-sm font-medium text-muted-foreground">Vị trí đỗ</div>
+                <div className="text-sm font-medium text-muted-foreground">Vị trí dock</div>
                 <div className="col-span-2">
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                    {booking.stationDockName || `Dock ${booking.stationDockId}`}
+                    {booking.stationDockName || (booking.stationDockId != null ? `Dock ${booking.stationDockId}` : "Không gắn dock")}
                   </span>
                 </div>
               </div>

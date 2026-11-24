@@ -122,7 +122,7 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
         header: "Vị trí",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-            {row.original.stationDockName || `Dock ${row.original.stationDockId}`}
+            {row.original.stationDockName || (row.original.stationDockId != null ? `Dock ${row.original.stationDockId}` : "Không gắn dock")}
           </span>
         ),
       },
@@ -137,7 +137,7 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
             if (!d) return "N/A";
             try {
               return format(parseISO(d), "dd/MM/yyyy HH:mm");
-            } catch (e) {
+            } catch {
               return d;
             }
           };
@@ -233,7 +233,7 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
         onClose={() => setIsCancelOpen(false)}
         onConfirm={handleConfirmCancel}
         title="Xác nhận hủy đặt chỗ"
-        description={`Bạn có chắc chắn muốn hủy lượt đặt chỗ ${selectedBooking ? '#' + selectedBooking.bookingId : ''} không? Hành động này sẽ trả lại vị trí đỗ và không thể hoàn tác.`}
+        description={`Bạn có chắc chắn muốn hủy lượt đặt giữ ${selectedBooking ? '#' + selectedBooking.bookingId : ''} không? Hành động này sẽ giải phóng vị trí dock và không thể hoàn tác.`}
         confirmText="Hủy đặt chỗ"
         cancelText="Đóng"
         variant="danger"

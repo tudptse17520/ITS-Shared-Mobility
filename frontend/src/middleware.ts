@@ -18,23 +18,13 @@ interface JwtPayload {
 // =============================================
 
 /** Các route không cần xác thực */
-const PUBLIC_ROUTES = ["/", "/login", "/forbidden"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/forbidden"];
 
 /** Mapping role -> prefix route được phép truy cập (chỉ 2 vai trò ADMIN & USER) */
 const ROLE_ROUTE_MAP: Record<string, string[]> = {
   ADMIN: ["/admin", "/manager", "/profile"],
   USER: ["/profile"],
 };
-
-/** Mapping role -> đường dẫn dashboard mặc định */
-const ROLE_DEFAULT_ROUTES: Record<string, string> = {
-  ADMIN: "/admin/dashboard",
-  USER: "/profile",
-};
-
-// =============================================
-// Helper Functions
-// =============================================
 
 /**
  * Kiểm tra route có phải public không
@@ -72,11 +62,6 @@ function hasRouteAccess(role: string, pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // TẠM THỜI: Bỏ qua mọi route guard cho mục đích demo
-  return NextResponse.next();
-
-  // --- TẠM THỜI COMMENT TOÀN BỘ PHẦN DƯỚI ĐỂ BỎ QUA ROUTE GUARD ---
-  /*
   // 1. Bỏ qua static files và API routes
   if (
     pathname.startsWith("/_next") ||
@@ -95,29 +80,23 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("access_token")?.value;
 
   if (!token) {
-    // Chưa đăng nhập -> redirect về login
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // 4. Decode token và kiểm tra role
-  const payload = decodeJwtPayload(token as string);
+  const payload = decodeJwtPayload(token);
 
   if (!payload || !payload.role) {
-    // Token không hợp lệ -> redirect về login
-    const response = NextResponse.redirect(
-      new URL("/login", request.url)
-    );
+    const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("access_token");
     return response;
   }
 
   // 5. Kiểm tra token hết hạn
   if (payload.exp && Date.now() >= payload.exp * 1000) {
-    const response = NextResponse.redirect(
-      new URL("/login", request.url)
-    );
+    const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("access_token");
     return response;
   }
@@ -129,7 +108,6 @@ export function middleware(request: NextRequest) {
 
   // 7. Cho phép truy cập
   return NextResponse.next();
-  */
 }
 
 export const config = {

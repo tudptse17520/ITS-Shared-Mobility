@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { usePeakHourReport } from "../hooks/use-report";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { EmptyState } from "@/components/common/empty-state";
-import { Clock, CarFront, TrendingUp } from "lucide-react";
+import { Clock, CarFront } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReportFilter } from "../types/report.type";
 
@@ -69,11 +69,7 @@ export function PeakHoursChart({ filter }: PeakHoursChartProps) {
             <div className="flex items-center justify-center gap-3 mt-4">
               <span className="flex items-center gap-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-full text-sm font-medium">
                 <CarFront className="w-4 h-4" />
-                {data.vehicleCount} xe
-              </span>
-              <span className="flex items-center gap-1.5 bg-green-500/10 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full text-sm font-medium">
-                <TrendingUp className="w-4 h-4" />
-                Tăng 12%
+                {data.vehicleCount} lượt bắt đầu chuyến
               </span>
             </div>
           </div>
