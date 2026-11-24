@@ -16,6 +16,8 @@ import vn.edu.ut.its.entity.RideSession;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.FeedbackRepository;
 import vn.edu.ut.its.repository.RideSessionRepository;
+import vn.edu.ut.its.repository.UserRepository;
+import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.FeedbackService;
 
 @Service
@@ -24,6 +26,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final RideSessionRepository rideSessionRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,6 +41,10 @@ public class FeedbackServiceImpl implements FeedbackService {
     public FeedbackResponse getFeedbackById(Long id) {
         Feedback feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Feedback not found with ID: " + id));
+        Long ownerId = feedback.getRideSession() != null && feedback.getRideSession().getUser() != null
+                ? feedback.getRideSession().getUser().getId()
+                : null;
+        SecurityUtils.assertAdminOrOwner(ownerId, userRepository, "Bạn không có quyền xem phản ánh của người dùng khác.");
         return mapToResponse(feedback);
     }
 
@@ -47,11 +54,17 @@ public class FeedbackServiceImpl implements FeedbackService {
         RideSession session = rideSessionRepository.findById(request.getRideSessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ride Session not found with ID: " + request.getRideSessionId()));
 
+        Long ownerId = session.getUser() != null ? session.getUser().getId() : null;
+        SecurityUtils.assertAdminOrOwner(ownerId, userRepository, "Bạn chỉ có thể gửi phản ánh cho chuyến đi của chính mình.");
+        boolean isAdminCaller = SecurityUtils.getAuthenticatedUser(userRepository)
+                .map(SecurityUtils::isAdmin)
+                .orElse(true);
+
         Feedback feedback = Feedback.builder()
                 .rideSession(session)
                 .issueType(request.getIssueType())
                 .description(request.getDescription())
-                .status(request.getStatus() != null ? request.getStatus() : FeedbackStatus.REPORTED)
+                .status(isAdminCaller && request.getStatus() != null ? request.getStatus() : FeedbackStatus.REPORTED)
                 .build();
 
         Feedback savedFeedback = feedbackRepository.save(feedback);

@@ -11,8 +11,10 @@ import vn.edu.ut.its.entity.VehicleTelemetryLog;
 import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.RideSessionRepository;
+import vn.edu.ut.its.repository.UserRepository;
 import vn.edu.ut.its.repository.VehicleRepository;
 import vn.edu.ut.its.repository.VehicleTelemetryLogRepository;
+import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.IotSimulationService;
 import vn.edu.ut.its.service.SharedMobilityService;
 import vn.edu.ut.its.service.SseEmitterManager;
@@ -36,6 +38,7 @@ public class IotSimulationServiceImpl implements IotSimulationService {
     private final VehicleRepository vehicleRepository;
     private final RideSessionRepository rideSessionRepository;
     private final VehicleTelemetryLogRepository telemetryLogRepository;
+    private final UserRepository userRepository;
     private final SharedMobilityService sharedMobilityService;
     private final SseEmitterManager sseEmitterManager;
 
@@ -100,6 +103,11 @@ public class IotSimulationServiceImpl implements IotSimulationService {
     public RideSessionResponseDTO simulateRideStep(Long sessionId) {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi ID: " + sessionId));
+
+        SecurityUtils.assertAdminOrOwner(
+                session.getUser() != null ? session.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền mô phỏng GPS cho chuyến đi của người dùng khác.");
 
         if (session.getEndedAt() != null) {
             throw new BusinessRuleViolationException("Chuyến đi đã kết thúc, không thể mô phỏng di chuyển tiếp.");

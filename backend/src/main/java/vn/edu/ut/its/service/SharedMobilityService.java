@@ -26,5 +26,7 @@ public interface SharedMobilityService {
     RideSessionResponseDTO getActiveRideForCurrentUser(Long userId);
 
     List<RideSessionResponseDTO> getRideHistory(Long userId);
+
+    int releaseExpiredReservations();
 }
 

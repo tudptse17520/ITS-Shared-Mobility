@@ -1,14 +1,14 @@
 package vn.edu.ut.its.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.ut.its.constant.BookingStatus;
+import vn.edu.ut.its.constant.StationDockStatus;
 import vn.edu.ut.its.constant.StationStatus;
 import vn.edu.ut.its.constant.RideSessionStatus;
-import vn.edu.ut.its.constant.PaymentStatus;
 import vn.edu.ut.its.dto.mobility.*;
 import vn.edu.ut.its.dto.response.BookingResponseDTO;
 import vn.edu.ut.its.entity.*;
@@ -16,6 +16,8 @@ import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.exception.ConflictException;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.*;
+import vn.edu.ut.its.security.SecurityUtils;
+import vn.edu.ut.its.service.DockAvailabilityService;
 import vn.edu.ut.its.service.SharedMobilityService;
 import vn.edu.ut.its.service.SseEmitterManager;
 import vn.edu.ut.its.util.GeoUtils;
@@ -45,6 +47,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     private final PricingPolicyRepository pricingPolicyRepository;
     private final VehicleTelemetryLogRepository telemetryLogRepository;
     private final PaymentCustomRepository paymentCustomRepository;
+    private final DockAvailabilityService dockAvailabilityService;
     private final SseEmitterManager sseEmitterManager;
 
     @Override
@@ -119,6 +122,9 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         Vehicle vehicle = vehicleRepository.findByIdForUpdate(request.getVehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + request.getVehicleId()));
 
+        LocalDateTime now = LocalDateTime.now();
+        releaseIfExpiredLocked(vehicle, now);
+
         if (!"AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
             throw new ConflictException("Phương tiện " + vehicle.getVehicleCode()
                     + " hiện đang ở trạng thái " + vehicle.getFleetStatus() + ", không thể đặt giữ.");
@@ -132,7 +138,6 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         int holdMinutes = (request.getHoldMinutes() != null && request.getHoldMinutes() > 0)
                 ? request.getHoldMinutes()
                 : 15;
-        LocalDateTime now = LocalDateTime.now();
 
         vehicle.setFleetStatus("RESERVED");
         vehicleRepository.save(vehicle);
@@ -163,15 +168,31 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         Vehicle vehicle = vehicleRepository.findByIdForUpdate(vehicleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
 
+        releaseIfExpiredLocked(vehicle, LocalDateTime.now());
+
         if (!"RESERVED".equalsIgnoreCase(vehicle.getFleetStatus())) {
             throw new BusinessRuleViolationException("Phương tiện không ở trạng thái đặt giữ (RESERVED).");
         }
 
-        bookingRepository.findFirstByVehicleIdAndStatusOrderByIdDesc(vehicleId, BookingStatus.CONFIRMED)
-                .ifPresent(booking -> {
-                    booking.setStatus(BookingStatus.CANCELLED);
-                    bookingRepository.save(booking);
-                });
+        Booking activeBooking = bookingRepository.findFirstByVehicleIdAndStatusOrderByIdDesc(vehicleId, BookingStatus.CONFIRMED)
+                .orElse(null);
+        if (activeBooking != null) {
+            SecurityUtils.assertAdminOrOwner(
+                    activeBooking.getUser() != null ? activeBooking.getUser().getId() : null,
+                    userRepository,
+                    "Bạn không có quyền hủy lượt đặt giữ xe của người dùng khác.");
+            activeBooking.setStatus(BookingStatus.CANCELLED);
+            bookingRepository.save(activeBooking);
+            if (activeBooking.getStationDock() != null) {
+                dockAvailabilityService.updateDockStatus(activeBooking.getStationDock().getId(), StationDockStatus.AVAILABLE);
+            }
+        } else {
+            SecurityUtils.getAuthenticatedUser(userRepository).ifPresent(caller -> {
+                if (!SecurityUtils.isAdmin(caller)) {
+                    throw new AccessDeniedException("Chỉ quản trị viên mới có thể giải phóng xe giữ chỗ không gắn đơn đặt.");
+                }
+            });
+        }
 
         vehicle.setFleetStatus("AVAILABLE");
         vehicleRepository.save(vehicle);
@@ -193,6 +214,22 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
             throw new BusinessRuleViolationException("Vui lòng cung cấp vehicleId hoặc vehicleCode (mã QR).");
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        releaseIfExpiredLocked(vehicle, now);
+
+        // Idempotency / single-active-ride check for the user
+        Optional<RideSession> existingActive = rideSessionRepository
+                .findFirstByUser_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(user.getId(), RideSessionStatus.IN_PROGRESS);
+        if (existingActive.isPresent()) {
+            RideSession current = existingActive.get();
+            if (current.getVehicle() != null && current.getVehicle().getId().equals(vehicle.getId())) {
+                return mapToRideSessionDTO(current);
+            }
+            throw new ConflictException("Bạn đang có chuyến đi chưa kết thúc trên xe "
+                    + (current.getVehicle() != null ? current.getVehicle().getVehicleCode() : current.getPlate())
+                    + ". Vui lòng kết thúc trước khi mở khóa xe khác.");
+        }
+
         Booking matchedBooking = null;
         if ("RESERVED".equalsIgnoreCase(vehicle.getFleetStatus())) {
             matchedBooking = bookingRepository.findFirstByVehicleIdAndStatusOrderByIdDesc(vehicle.getId(), BookingStatus.CONFIRMED)
@@ -203,6 +240,9 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
             if (matchedBooking != null) {
                 matchedBooking.setStatus(BookingStatus.USED);
                 bookingRepository.save(matchedBooking);
+                if (matchedBooking.getStationDock() != null) {
+                    dockAvailabilityService.updateDockStatus(matchedBooking.getStationDock().getId(), StationDockStatus.AVAILABLE);
+                }
             }
         } else if (!"AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
             throw new ConflictException("Phương tiện " + vehicle.getVehicleCode() + " hiện không khả dụng (" + vehicle.getFleetStatus() + ").");
@@ -223,8 +263,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         vehicle.setLongitude(startLng);
         vehicleRepository.save(vehicle);
 
-        String sessionCode = "RIDE-" + vehicle.getVehicleCode() + "-" + System.currentTimeMillis() % 100000;
-        LocalDateTime now = LocalDateTime.now();
+        String sessionCode = "RIDE-" + vehicle.getVehicleCode() + "-" + (System.currentTimeMillis() % 100000);
 
         RideSession session = RideSession.builder()
                 .sessionCode(sessionCode)
@@ -262,6 +301,11 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     public RideSessionResponseDTO endRide(Long sessionId, EndRideRequestDTO request) {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + sessionId));
+
+        SecurityUtils.assertAdminOrOwner(
+                session.getUser() != null ? session.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền kết thúc chuyến đi của người dùng khác.");
 
         if (session.getEndedAt() != null) {
             return mapToRideSessionDTO(session);
@@ -301,7 +345,14 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         session.setEndBatteryLevel(battery);
         BigDecimal totalFee = calculateRideFee(vehicle, session.getStartedAt(), now, session.getDistanceKm());
         session.setTotalFee(totalFee);
-        // Trạng thái giữ IN_PROGRESS cho tới khi PaymentService hoàn tất thanh toán (hoặc Cash/VNPay IPN)
+        BigDecimal alreadyPaid = paymentCustomRepository.sumSuccessfulAmountBySessionId(session.getId());
+        if (session.getBooking() != null) {
+            alreadyPaid = alreadyPaid.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(session.getBooking().getId()));
+        }
+        if (alreadyPaid.compareTo(totalFee) >= 0) {
+            session.setStatus(RideSessionStatus.COMPLETED);
+        }
+        // Nếu chưa thanh toán đủ, giữ IN_PROGRESS (DTO trả status AWAITING_PAYMENT) tới khi PaymentService hoàn tất
         RideSession updatedSession = rideSessionRepository.save(session);
 
         VehicleTelemetryLog endLog = VehicleTelemetryLog.builder()
@@ -325,6 +376,10 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     public RideSessionResponseDTO getRideSession(Long sessionId) {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + sessionId));
+        SecurityUtils.assertAdminOrOwner(
+                session.getUser() != null ? session.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền xem chuyến đi của người dùng khác.");
         return mapToRideSessionDTO(session);
     }
 
@@ -346,18 +401,52 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Scheduled(fixedDelay = 30000)
+    public int releaseExpiredReservations() {
+        LocalDateTime now = LocalDateTime.now();
+        List<Booking> expired = bookingRepository.findByStatusAndExpiredAtBefore(BookingStatus.CONFIRMED, now);
+        int released = 0;
+        for (Booking booking : expired) {
+            booking.setStatus(BookingStatus.EXPIRED);
+            bookingRepository.save(booking);
+            if (booking.getStationDock() != null) {
+                dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.AVAILABLE);
+            }
+            if (booking.getVehicle() != null) {
+                Vehicle v = vehicleRepository.findByIdForUpdate(booking.getVehicle().getId()).orElse(null);
+                if (v != null && "RESERVED".equalsIgnoreCase(v.getFleetStatus())) {
+                    v.setFleetStatus("AVAILABLE");
+                    vehicleRepository.save(v);
+                    broadcastFleetSnapshot(v, null);
+                }
+            }
+            released++;
+        }
+        return released;
+    }
+
+    private void releaseIfExpiredLocked(Vehicle vehicle, LocalDateTime now) {
+        if (!"RESERVED".equalsIgnoreCase(vehicle.getFleetStatus())) {
+            return;
+        }
+        bookingRepository.findFirstByVehicleIdAndStatusOrderByIdDesc(vehicle.getId(), BookingStatus.CONFIRMED)
+                .ifPresent(active -> {
+                    if (active.getExpiredAt() != null && active.getExpiredAt().isBefore(now)) {
+                        active.setStatus(BookingStatus.EXPIRED);
+                        bookingRepository.save(active);
+                        if (active.getStationDock() != null) {
+                            dockAvailabilityService.updateDockStatus(active.getStationDock().getId(), StationDockStatus.AVAILABLE);
+                        }
+                        vehicle.setFleetStatus("AVAILABLE");
+                        vehicleRepository.save(vehicle);
+                        broadcastFleetSnapshot(vehicle, null);
+                    }
+                });
+    }
+
     private User resolveUser(Long explicitUserId) {
-        if (explicitUserId != null) {
-            return userRepository.findById(explicitUserId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản người dùng ID: " + explicitUserId));
-        }
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User principal) {
-            return userRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản đăng nhập."));
-        }
-        return userRepository.findByUsername("user")
-                .orElseThrow(() -> new ResourceNotFoundException("Không xác định được người dùng thực hiện giao dịch."));
+        return SecurityUtils.resolveAuthorizedUser(explicitUserId, userRepository);
     }
 
     private BigDecimal calculateRideFee(Vehicle vehicle, LocalDateTime startedAt, LocalDateTime endedAt, Double distanceKm) {
@@ -429,6 +518,9 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 : calculateRideFee(v, s.getStartedAt(), effectiveEnd, s.getDistanceKm());
 
         BigDecimal paidAmount = paymentCustomRepository.sumSuccessfulAmountBySessionId(s.getId());
+        if (s.getBooking() != null) {
+            paidAmount = paidAmount.add(paymentCustomRepository.sumSuccessfulAmountByBookingId(s.getBooking().getId()));
+        }
         boolean isPaid = s.getStatus() == RideSessionStatus.COMPLETED
                 || (s.getTotalFee() != null && paidAmount.compareTo(s.getTotalFee()) >= 0);
 
