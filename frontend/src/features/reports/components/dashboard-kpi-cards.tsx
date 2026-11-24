@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Banknote, Car, CarFront, Percent, MapPin } from "lucide-react";
+import { MoneyIcon as Banknote, CarIcon as Car, CarProfileIcon as CarFront, PercentIcon as Percent, MapPinIcon as MapPin } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 
 export const statCards = [
