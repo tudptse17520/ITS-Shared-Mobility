@@ -16,6 +16,7 @@ import vn.edu.ut.its.repository.VehicleRepository;
 import vn.edu.ut.its.repository.VehicleTelemetryLogRepository;
 import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.IotSimulationService;
+import vn.edu.ut.its.service.RuntimeConfigProvider;
 import vn.edu.ut.its.service.SharedMobilityService;
 import vn.edu.ut.its.service.SseEmitterManager;
 import vn.edu.ut.its.util.GeoUtils;
@@ -39,6 +40,7 @@ public class IotSimulationServiceImpl implements IotSimulationService {
     private final RideSessionRepository rideSessionRepository;
     private final VehicleTelemetryLogRepository telemetryLogRepository;
     private final UserRepository userRepository;
+    private final RuntimeConfigProvider runtimeConfigProvider;
     private final SharedMobilityService sharedMobilityService;
     private final SseEmitterManager sseEmitterManager;
 
@@ -68,7 +70,8 @@ public class IotSimulationServiceImpl implements IotSimulationService {
             vehicle.setLockStatus(request.getLockStatus().trim().toUpperCase());
         }
 
-        if (newBattery < 15 && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
+        int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
+        if (newBattery < lowBatteryThreshold && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
             vehicle.setFleetStatus("LOW_BATTERY");
         }
         vehicleRepository.save(vehicle);
@@ -160,11 +163,12 @@ public class IotSimulationServiceImpl implements IotSimulationService {
                 }
             }
             case "SET_BATTERY" -> {
+                int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
                 int bat = request.getBatteryLevel() != null ? Math.max(0, Math.min(100, request.getBatteryLevel())) : 50;
                 vehicle.setBatteryLevel(bat);
-                if (bat < 15 && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
+                if (bat < lowBatteryThreshold && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
                     vehicle.setFleetStatus("LOW_BATTERY");
-                } else if (bat >= 20 && "LOW_BATTERY".equalsIgnoreCase(vehicle.getFleetStatus())) {
+                } else if (bat >= lowBatteryThreshold && "LOW_BATTERY".equalsIgnoreCase(vehicle.getFleetStatus())) {
                     vehicle.setFleetStatus("AVAILABLE");
                 }
             }

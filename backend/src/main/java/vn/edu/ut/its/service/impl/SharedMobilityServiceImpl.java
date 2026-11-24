@@ -18,6 +18,7 @@ import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.*;
 import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.DockAvailabilityService;
+import vn.edu.ut.its.service.RuntimeConfigProvider;
 import vn.edu.ut.its.service.SharedMobilityService;
 import vn.edu.ut.its.service.SseEmitterManager;
 import vn.edu.ut.its.util.GeoUtils;
@@ -48,6 +49,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     private final VehicleTelemetryLogRepository telemetryLogRepository;
     private final PaymentCustomRepository paymentCustomRepository;
     private final DockAvailabilityService dockAvailabilityService;
+    private final RuntimeConfigProvider runtimeConfigProvider;
     private final SseEmitterManager sseEmitterManager;
 
     @Override
@@ -80,9 +82,10 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     public List<FleetVehicleResponseDTO> getAllFleetVehicles() {
         Map<Long, String> stationNames = stationRepository.findAll().stream()
                 .collect(Collectors.toMap(Station::getId, Station::getStationName, (a, b) -> a));
+        Map<Long, PricingPolicy> latestPolicies = loadLatestPolicyMap();
 
         return vehicleRepository.findByVehicleCodeIsNotNull().stream()
-                .map(v -> mapToFleetVehicleDTO(v, null, stationNames))
+                .map(v -> mapToFleetVehicleDTO(v, null, stationNames, latestPolicies))
                 .sorted(Comparator.comparing(FleetVehicleResponseDTO::getId))
                 .collect(Collectors.toList());
     }
@@ -92,11 +95,12 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
     public List<FleetVehicleResponseDTO> getNearbyVehicles(Double lat, Double lng, Double radiusKm, Long vehicleTypeId, Boolean onlyAvailable) {
         double userLat = lat != null ? lat : 10.8045;
         double userLng = lng != null ? lng : 106.7166;
-        double maxRadiusKm = radiusKm != null ? radiusKm : 15.0;
+        double maxRadiusKm = (radiusKm != null && radiusKm > 0) ? radiusKm : runtimeConfigProvider.getDefaultSearchRadiusKm();
         boolean filterAvailable = Boolean.TRUE.equals(onlyAvailable);
 
         Map<Long, String> stationNames = stationRepository.findAll().stream()
                 .collect(Collectors.toMap(Station::getId, Station::getStationName, (a, b) -> a));
+        Map<Long, PricingPolicy> latestPolicies = loadLatestPolicyMap();
 
         return vehicleRepository.findByVehicleCodeIsNotNull().stream()
                 .filter(v -> v.getLatitude() != null && v.getLongitude() != null)
@@ -104,7 +108,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .filter(v -> !filterAvailable || "AVAILABLE".equalsIgnoreCase(v.getFleetStatus()))
                 .map(v -> {
                     double meters = GeoUtils.haversineMeters(userLat, userLng, v.getLatitude(), v.getLongitude());
-                    return mapToFleetVehicleDTO(v, meters, stationNames);
+                    return mapToFleetVehicleDTO(v, meters, stationNames, latestPolicies);
                 })
                 .filter(dto -> dto.getDistanceMeters() <= maxRadiusKm * 1000.0)
                 .sorted(Comparator.comparing(FleetVehicleResponseDTO::getDistanceMeters))
@@ -130,14 +134,15 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                     + " hiện đang ở trạng thái " + vehicle.getFleetStatus() + ", không thể đặt giữ.");
         }
 
-        if (vehicle.getBatteryLevel() != null && vehicle.getBatteryLevel() < 15) {
+        int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
+        if (vehicle.getBatteryLevel() != null && vehicle.getBatteryLevel() < lowBatteryThreshold) {
             throw new BusinessRuleViolationException("Phương tiện " + vehicle.getVehicleCode()
                     + " đang yếu pin (" + vehicle.getBatteryLevel() + "%), vui lòng chọn xe khác.");
         }
 
         int holdMinutes = (request.getHoldMinutes() != null && request.getHoldMinutes() > 0)
                 ? request.getHoldMinutes()
-                : 15;
+                : runtimeConfigProvider.getHoldDurationMinutes();
 
         vehicle.setFleetStatus("RESERVED");
         vehicleRepository.save(vehicle);
@@ -248,7 +253,8 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
             throw new ConflictException("Phương tiện " + vehicle.getVehicleCode() + " hiện không khả dụng (" + vehicle.getFleetStatus() + ").");
         }
 
-        if (vehicle.getBatteryLevel() != null && vehicle.getBatteryLevel() < 15) {
+        int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
+        if (vehicle.getBatteryLevel() != null && vehicle.getBatteryLevel() < lowBatteryThreshold) {
             throw new BusinessRuleViolationException("Dung lượng pin quá thấp (" + vehicle.getBatteryLevel() + "%), không thể mở khóa.");
         }
 
@@ -336,7 +342,8 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
         vehicle.setLockStatus("LOCKED");
         vehicle.setCurrentStationId(nearestStationId);
         int battery = vehicle.getBatteryLevel() != null ? vehicle.getBatteryLevel() : 100;
-        vehicle.setFleetStatus(battery < 20 ? "LOW_BATTERY" : "AVAILABLE");
+        int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
+        vehicle.setFleetStatus(battery < lowBatteryThreshold ? "LOW_BATTERY" : "AVAILABLE");
         vehicleRepository.save(vehicle);
 
         session.setEndedAt(now);
@@ -461,9 +468,22 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .divide(BigDecimal.valueOf(60), 0, RoundingMode.CEILING);
 
         double km = distanceKm != null ? distanceKm : 0.0;
-        BigDecimal distanceFee = BigDecimal.valueOf(Math.round(km * 2000.0));
+        BigDecimal ratePerKm = runtimeConfigProvider.getDistanceRatePerKm();
+        BigDecimal distanceFee = ratePerKm
+                .multiply(BigDecimal.valueOf(km))
+                .setScale(0, RoundingMode.HALF_UP);
 
         return unlockFee.add(timeFee).add(distanceFee).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private Map<Long, PricingPolicy> loadLatestPolicyMap() {
+        Map<Long, PricingPolicy> map = new HashMap<>();
+        for (PricingPolicy p : pricingPolicyRepository.findEffectivePoliciesUpTo(LocalDateTime.now())) {
+            if (p.getVehicleType() != null) {
+                map.putIfAbsent(p.getVehicleType().getId(), p);
+            }
+        }
+        return map;
     }
 
     private PricingPolicy resolvePricingPolicy(Vehicle vehicle) {
@@ -487,8 +507,13 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .orElse(null);
     }
 
-    private FleetVehicleResponseDTO mapToFleetVehicleDTO(Vehicle v, Double distanceMeters, Map<Long, String> stationNames) {
-        PricingPolicy policy = resolvePricingPolicy(v);
+    private FleetVehicleResponseDTO mapToFleetVehicleDTO(
+            Vehicle v,
+            Double distanceMeters,
+            Map<Long, String> stationNames,
+            Map<Long, PricingPolicy> latestPolicies) {
+        Long vtId = v.getVehicleType() != null ? v.getVehicleType().getId() : null;
+        PricingPolicy policy = vtId != null ? latestPolicies.get(vtId) : null;
         return FleetVehicleResponseDTO.builder()
                 .id(v.getId())
                 .vehicleCode(v.getVehicleCode())

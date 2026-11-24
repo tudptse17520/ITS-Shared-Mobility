@@ -40,7 +40,7 @@ public class SharedMobilityController {
     public ResponseEntity<List<FleetVehicleResponseDTO>> getNearbyVehicles(
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
-            @RequestParam(required = false, defaultValue = "15.0") Double radiusKm,
+            @RequestParam(required = false) Double radiusKm,
             @RequestParam(required = false) Long vehicleTypeId,
             @RequestParam(required = false, defaultValue = "false") Boolean onlyAvailable) {
         return ResponseEntity.ok(sharedMobilityService.getNearbyVehicles(lat, lng, radiusKm, vehicleTypeId, onlyAvailable));
