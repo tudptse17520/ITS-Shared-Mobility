@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { usePeakHourReport } from "../hooks/use-report";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { EmptyState } from "@/components/common/empty-state";
-import { Clock, CarFront, TrendingUp } from "lucide-react";
+import { ClockIcon as Clock, CarProfileIcon as CarFront, TrendUpIcon as TrendingUp } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import type { ReportFilter } from "../types/report.type";
 
