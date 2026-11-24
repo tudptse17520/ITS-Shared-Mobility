@@ -3,7 +3,7 @@
 ```text
 vn\edu\ut\its
 ├── config/       # Cấu hình CORS, Async, Swagger và Security (JWT)
-├── constant/     # Chứa các Enum (SlotStatus, VehicleType,...)
+├── constant/     # Chứa các Enum (StationDockStatus, RideSessionStatus, VehicleTypeStatus,...)
 ├── controller/   # Nơi tiếp nhận request từ React/Next.js
 ├── dto/          # Dữ liệu luân chuyển giữa FE và BE
 │   ├── request/
@@ -27,7 +27,7 @@ vn\edu\ut\its
    cd backend/
    ```
 2. Set up environment variables:
-   Copy `.env.example` to `.env` and update the database credentials and JWT secret. Set ITS_DEMO_SEED=true only for a disposable demo database. The seeder resets demo data when enabled. For an existing database, see the migration instructions below.
+   Copy `.env.example` to `.env` and update the database credentials and JWT secret. Keep `APP_SECURITY_REQUIRE_AUTH=true` in normal runs. Set `ITS_DEMO_SEED=true` (or `APP_DEMO_SEED_ENABLED=true`) only for a disposable demo database; the seeder resets demo data when enabled. For an existing database, see the migration instructions below.
 3. Install dependencies and compile the project:
    ```bash
    .\mvnw.cmd clean compile

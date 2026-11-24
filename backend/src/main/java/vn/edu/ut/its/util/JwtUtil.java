@@ -31,7 +31,7 @@ public class JwtUtil {
      * Sinh JWT token chứa username và role.
      *
      * @param username tên tài khoản người dùng
-     * @param role     vai trò của người dùng (ADMIN, MANAGER, STAFF, USER)
+     * @param role     vai trò của người dùng (ADMIN, USER)
      * @return chuỗi JWT token đã ký
      */
     public String generateToken(String username, String role) {

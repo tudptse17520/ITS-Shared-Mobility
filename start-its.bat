@@ -27,7 +27,7 @@ echo  - Backend API   : http://localhost:8080/api/v1
 echo  - Swagger Docs  : http://localhost:8080/swagger-ui/index.html
 echo  - Mobile App    : Mo thu muc mobile-android/ trong Android Studio
 echo.
-echo  Tai khoan demo: admin / password  |  manager / password  |  user / password
+echo  Tai khoan demo: admin / password  |  user / password
 echo ==============================================================================
 echo.
 pause

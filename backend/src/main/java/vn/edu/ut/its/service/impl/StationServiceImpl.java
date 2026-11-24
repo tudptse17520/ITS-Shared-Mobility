@@ -212,10 +212,10 @@ public class StationServiceImpl implements StationService {
         Station station = stationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy trạm xe với ID: " + id));
 
-        // Kiểm tra xem có phiên đỗ xe nào đang hoạt động (IN_PROGRESS) trong trạm xe này không
+        // Kiểm tra xem có chuyến đi nào đang diễn ra (IN_PROGRESS và chưa kết thúc) gắn với trạm xe này không
         String jpql = "SELECT COUNT(ps) FROM RideSession ps " +
                       "WHERE ps.stationDock.stationZone.station.id = :stationId " +
-                      "AND ps.status = :status";
+                      "AND ps.status = :status AND ps.endedAt IS NULL";
         
         Long count = entityManager.createQuery(jpql, Long.class)
                 .setParameter("stationId", id)
@@ -223,7 +223,7 @@ public class StationServiceImpl implements StationService {
                 .getSingleResult();
 
         if (count > 0) {
-            throw new ConflictException("Không thể xóa trạm xe vì đang có phiên đỗ xe hoạt động bên trong.");
+            throw new ConflictException("Không thể xóa trạm xe vì đang có chuyến đi hoạt động tại trạm.");
         }
 
         List<StationZone> stationZones = station.getStationZones();
