@@ -35,8 +35,8 @@ public final class MessageConstants {
     /**
      * E3 - Ràng buộc dữ liệu
      */
-    public static final String PRICING_POLICY_IN_USE_DELETE = "Không thể xóa. Bảng giá này đang được tham chiếu tính phí cho các lượt gửi xe.";
-    public static final String PRICING_POLICY_IN_USE_UPDATE = "Không thể cập nhật. Bảng giá này đang được tham chiếu tính phí cho các lượt gửi xe.";
+    public static final String PRICING_POLICY_IN_USE_DELETE = "Không thể xóa. Bảng giá này đang được tham chiếu tính phí cho các chuyến đi.";
+    public static final String PRICING_POLICY_IN_USE_UPDATE = "Không thể cập nhật. Bảng giá này đang được tham chiếu tính phí cho các chuyến đi.";
 
     /**
      * E3 - Error code theo API Contract

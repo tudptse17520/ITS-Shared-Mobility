@@ -14,11 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.ut.its.constant.StationDockStatus;
 import vn.edu.ut.its.constant.PaymentStatus;
 import vn.edu.ut.its.constant.RideSessionStatus;
+import vn.edu.ut.its.constant.FeeType;
 import vn.edu.ut.its.dto.report.DashboardReportDTO;
 import vn.edu.ut.its.dto.report.OccupancyRateReportDTO;
 import vn.edu.ut.its.dto.report.PeakHourReportDTO;
 import vn.edu.ut.its.dto.report.RevenueReportDTO;
-import vn.edu.ut.its.dto.report.VehicleEntryExitReportDTO;
+import vn.edu.ut.its.dto.report.RideFlowReportDTO;
 import vn.edu.ut.its.entity.RideSession;
 import vn.edu.ut.its.entity.Payment;
 import vn.edu.ut.its.exception.BusinessRuleViolationException;
@@ -45,6 +46,7 @@ public class ReportServiceImpl implements ReportService {
 
         // Fetch successful payments within date range
         List<Payment> payments = paymentRepository.findByStatus(PaymentStatus.SUCCESS).stream()
+                .filter(payment -> payment.getFeeType() != FeeType.HISTORICAL_ADJUSTMENT)
                 .filter(p -> !p.getPaymentTime().isBefore(start) && !p.getPaymentTime().isAfter(end))
                 .collect(Collectors.toList());
 
@@ -79,7 +81,7 @@ public class ReportServiceImpl implements ReportService {
                             } else if (p.getBooking() != null && p.getBooking().getVehicle() != null) {
                                 return p.getBooking().getVehicle().getVehicleType().getTypeName();
                             } else {
-                                return "Vãng lai / Khác";
+                                return "Không phân loại";
                             }
                         },
                         Collectors.reducing(BigDecimal.ZERO, Payment::getAmount, BigDecimal::add)
@@ -100,77 +102,65 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public VehicleEntryExitReportDTO getVehicleEntryExitReport(String startDate, String endDate, Long vehicleTypeId) {
+    public RideFlowReportDTO getRideFlowReport(String startDate, String endDate, Long vehicleTypeId) {
         LocalDateTime start = parseDate(startDate, false);
         LocalDateTime end = parseDate(endDate, true);
+        boolean singleDay = start.toLocalDate().equals(end.toLocalDate());
+        Map<String, Long> started = new TreeMap<>();
+        Map<String, Long> ended = new TreeMap<>();
 
-        // Filter sessions within date range and matching vehicle type (if provided)
-        List<RideSession> sessions = rideSessionRepository.findAll().stream()
-                .filter(s -> !s.getTimeIn().isBefore(start) && !s.getTimeIn().isAfter(end))
-                .filter(s -> {
-                    if (vehicleTypeId == null) return true;
-                    if (s.getVehicle() != null && s.getVehicle().getVehicleType() != null) {
-                        return s.getVehicle().getVehicleType().getId().equals(vehicleTypeId);
-                    }
-                    if (s.getStationDock() != null && s.getStationDock().getStationZone() != null && s.getStationDock().getStationZone().getVehicleType() != null) {
-                        return s.getStationDock().getStationZone().getVehicleType().getId().equals(vehicleTypeId);
-                    }
-                    return false;
-                })
-                .collect(Collectors.toList());
-
-        int totalEntries = sessions.size();
-        int totalExits = (int) sessions.stream()
-                .filter(s -> s.getStatus() == RideSessionStatus.COMPLETED && s.getTimeOut() != null && !s.getTimeOut().isBefore(start) && !s.getTimeOut().isAfter(end))
-                .count();
-
-        // Create breakdown details
-        List<Map<String, Object>> details = new ArrayList<>();
-
-        boolean isSingleDay = start.toLocalDate().equals(end.toLocalDate());
-
-        Map<String, Long> dailyEntries = sessions.stream()
-                .collect(Collectors.groupingBy(
-                        s -> isSingleDay 
-                             ? String.format("%02d:00", s.getTimeIn().getHour()) 
-                             : s.getTimeIn().toLocalDate().toString(),
-                        Collectors.counting()
-                ));
-
-        Map<String, Long> dailyExits = sessions.stream()
-                .filter(s -> s.getStatus() == RideSessionStatus.COMPLETED && s.getTimeOut() != null && !s.getTimeOut().isBefore(start) && !s.getTimeOut().isAfter(end))
-                .collect(Collectors.groupingBy(
-                        s -> isSingleDay 
-                             ? String.format("%02d:00", s.getTimeOut().getHour()) 
-                             : s.getTimeOut().toLocalDate().toString(),
-                        Collectors.counting()
-                ));
-
-        Set<String> allDates = new HashSet<>();
-        allDates.addAll(dailyEntries.keySet());
-        allDates.addAll(dailyExits.keySet());
-
-        List<String> sortedDates = new ArrayList<>(allDates);
-        Collections.sort(sortedDates);
-
-        for (String date : sortedDates) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("date", date);
-            item.put("entries", dailyEntries.getOrDefault(date, 0L));
-            item.put("exits", dailyExits.getOrDefault(date, 0L));
-            details.add(item);
+        for (RideSession ride : rideSessionRepository.findAll()) {
+            if (!matchesVehicleType(ride, vehicleTypeId)) {
+                continue;
+            }
+            if (inRange(ride.getStartedAt(), start, end)) {
+                started.merge(reportBucket(ride.getStartedAt(), singleDay), 1L, Long::sum);
+            }
+            if (inRange(ride.getEndedAt(), start, end)) {
+                ended.merge(reportBucket(ride.getEndedAt(), singleDay), 1L, Long::sum);
+            }
         }
 
-        return VehicleEntryExitReportDTO.builder()
-                .totalEntries(totalEntries)
-                .totalExits(totalExits)
+        Set<String> buckets = new TreeSet<>(started.keySet());
+        buckets.addAll(ended.keySet());
+        List<Map<String, Object>> details = new ArrayList<>();
+        for (String bucket : buckets) {
+            details.add(Map.of("date", bucket,
+                    "ridesStarted", started.getOrDefault(bucket, 0L),
+                    "ridesEnded", ended.getOrDefault(bucket, 0L)));
+        }
+
+        return RideFlowReportDTO.builder()
+                .totalRidesStarted(started.values().stream().mapToInt(Long::intValue).sum())
+                .totalRidesEnded(ended.values().stream().mapToInt(Long::intValue).sum())
                 .details(details)
                 .build();
     }
 
+    private boolean matchesVehicleType(RideSession ride, Long vehicleTypeId) {
+        if (vehicleTypeId == null) {
+            return true;
+        }
+        if (ride.getVehicle() != null && ride.getVehicle().getVehicleType() != null) {
+            return vehicleTypeId.equals(ride.getVehicle().getVehicleType().getId());
+        }
+        return ride.getStationDock() != null && ride.getStationDock().getStationZone() != null
+                && ride.getStationDock().getStationZone().getVehicleType() != null
+                && vehicleTypeId.equals(ride.getStationDock().getStationZone().getVehicleType().getId());
+    }
+
+    private boolean inRange(LocalDateTime timestamp, LocalDateTime start, LocalDateTime end) {
+        return timestamp != null && !timestamp.isBefore(start) && !timestamp.isAfter(end);
+    }
+
+    private String reportBucket(LocalDateTime timestamp, boolean singleDay) {
+        return singleDay ? String.format("%02d:00", timestamp.getHour()) : timestamp.toLocalDate().toString();
+    }
+
+
     @Override
     public OccupancyRateReportDTO getOccupancyRateReport(String startDate, String endDate, Long vehicleTypeId) {
-        // Find current occupancy stats (since historical occupancy logging is simulated)
+        // Find current dock occupancy snapshot
         long totalDocks = stationDockRepository.findAll().stream()
                 .filter(s -> vehicleTypeId == null || (s.getStationZone() != null && s.getStationZone().getVehicleType() != null && s.getStationZone().getVehicleType().getId().equals(vehicleTypeId)))
                 .count();
@@ -181,7 +171,7 @@ public class ReportServiceImpl implements ReportService {
                 .count();
 
         double averageRate = totalDocks > 0 ? (occupiedDocks * 100.0) / totalDocks : 0.0;
-        double maxRate = averageRate + 12.0 > 100.0 ? 100.0 : averageRate + 12.0;
+
 
         List<Map<String, Object>> details = stationZoneRepository.findAll().stream()
                 .filter(f -> vehicleTypeId == null || (f.getVehicleType() != null && f.getVehicleType().getId().equals(vehicleTypeId)))
@@ -199,6 +189,9 @@ public class ReportServiceImpl implements ReportService {
                 })
                 .collect(Collectors.toList());
 
+        double maxRate = details.stream()
+                .mapToDouble(zone -> ((Number) zone.get("occupancy_rate")).doubleValue())
+                .max().orElse(0.0);
         return OccupancyRateReportDTO.builder()
                 .averageOccupancyRate(averageRate)
                 .maxOccupancyRate(maxRate)
@@ -212,7 +205,7 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime end = parseDate(endDate, true);
 
         List<RideSession> sessions = rideSessionRepository.findAll().stream()
-                .filter(s -> !s.getTimeIn().isBefore(start) && !s.getTimeIn().isAfter(end))
+                .filter(s -> !s.getStartedAt().isBefore(start) && !s.getStartedAt().isAfter(end))
                 .filter(s -> {
                     if (vehicleTypeId == null) return true;
                     if (s.getVehicle() != null && s.getVehicle().getVehicleType() != null) {
@@ -227,7 +220,7 @@ public class ReportServiceImpl implements ReportService {
 
         Map<Integer, Long> hourCounts = sessions.stream()
                 .collect(Collectors.groupingBy(
-                        s -> s.getTimeIn().getHour(),
+                        s -> s.getStartedAt().getHour(),
                         Collectors.counting()
                 ));
 
@@ -261,7 +254,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public DashboardReportDTO getDashboardReport(String startDate, String endDate, Long vehicleTypeId) {
         RevenueReportDTO rev = getRevenueReport(startDate, endDate);
-        VehicleEntryExitReportDTO flow = getVehicleEntryExitReport(startDate, endDate, vehicleTypeId);
+        RideFlowReportDTO flow = getRideFlowReport(startDate, endDate, vehicleTypeId);
         OccupancyRateReportDTO occ = getOccupancyRateReport(startDate, endDate, vehicleTypeId);
         PeakHourReportDTO peak = getPeakHourReport(startDate, endDate, vehicleTypeId);
 
@@ -270,14 +263,15 @@ public class ReportServiceImpl implements ReportService {
         combinedDetails.put("flow_details", flow.getDetails());
         combinedDetails.put("occupancy_details", occ.getDetails());
 
-        int currentVehicles = (int) rideSessionRepository.findAll().stream()
-                .filter(s -> s.getStatus() == RideSessionStatus.IN_PROGRESS)
+        int activeRides = (int) rideSessionRepository.findAll().stream()
+                .filter(s -> s.getStatus() == RideSessionStatus.IN_PROGRESS && s.getEndedAt() == null)
+                .filter(s -> matchesVehicleType(s, vehicleTypeId))
                 .count();
 
         return DashboardReportDTO.builder()
-                .totalEntries(flow.getTotalEntries())
-                .totalExits(flow.getTotalExits())
-                .currentVehicles(currentVehicles)
+                .totalRidesStarted(flow.getTotalRidesStarted())
+                .totalRidesEnded(flow.getTotalRidesEnded())
+                .activeRides(activeRides)
                 .totalRevenue(rev.getTotalRevenue())
                 .occupancyRate(occ.getAverageOccupancyRate())
                 .peakHour(peak.getPeakHour())

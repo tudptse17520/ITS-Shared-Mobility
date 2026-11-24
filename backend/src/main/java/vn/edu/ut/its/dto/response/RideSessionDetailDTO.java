@@ -17,10 +17,10 @@ public class RideSessionDetailDTO {
     private Long id;
     
     private String plate;
-    private String ticketCode;
+    private String sessionCode;
     private String status;
-    private LocalDateTime timeIn;
-    private LocalDateTime timeOut;
+    private LocalDateTime startedAt;
+    private LocalDateTime endedAt;
     private BigDecimal totalFee;
     private Long vehicleId;
     private Long stationDockId;

@@ -10,7 +10,7 @@ import type {
     RevenueReport,
     OccupancyRateReport,
     PeakHourReport,
-    VehicleEntryExitReport,
+    RideFlowReport,
     DashboardReport,
 } from "@/features/reports/types/report.type";
 
@@ -111,9 +111,9 @@ export const getPeakHourReport = async (
 /**
  * Vehicle Entry / Exit Report
  */
-export const getVehicleEntryExitReport = async (
+export const getRideFlowReport = async (
     filter?: ReportFilter
-): Promise<VehicleEntryExitReport> => {
+): Promise<RideFlowReport> => {
     const params: Record<string, string | number> = {};
 
     if (filter?.startDate) params.startDate = filter.startDate;
@@ -121,7 +121,7 @@ export const getVehicleEntryExitReport = async (
     if (filter?.vehicleTypeId)
         params.vehicleTypeId = filter.vehicleTypeId;
 
-    const response = await axiosClient.get<VehicleEntryExitReport>(
+    const response = await axiosClient.get<RideFlowReport>(
         `${BASE_PATH}/vehicle-flow`,
         {
             params,

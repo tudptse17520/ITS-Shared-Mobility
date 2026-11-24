@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Giả lập 50 người dùng đồng thời cùng gửi yêu cầu đặt giữ 1 chiếc xe duy nhất (ITS-EB-001).
  * Đảm bảo cơ chế Pessimistic Write Lock ngăn chặn tuyệt đối lỗi Double Booking.
  */
-@SpringBootTest
+@SpringBootTest(properties = "its.demo.seed=true")
 class ConcurrencyReservationTest {
 
     @Autowired

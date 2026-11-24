@@ -98,7 +98,7 @@ export default function FeedbacksPage() {
     <PageContainer>
       <PageHeader
         title="Quản lý Sự cố"
-        description="Theo dõi và giải quyết các sự cố phát sinh tại bãi đỗ xe (mất thẻ, sai biển số, v.v.)"
+        description="Theo dõi và xử lý sự cố khi thuê hoặc trả xe tại trạm"
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />

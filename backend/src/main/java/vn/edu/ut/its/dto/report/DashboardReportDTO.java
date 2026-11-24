@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardReportDTO {
-    private int totalEntries;
-    private int totalExits;
-    private int currentVehicles;
+    private int totalRidesStarted;
+    private int totalRidesEnded;
+    private int activeRides;
     private BigDecimal totalRevenue;
     private Double occupancyRate;
     private String peakHour;

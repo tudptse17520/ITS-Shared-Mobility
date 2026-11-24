@@ -4,6 +4,8 @@
 // ---------------------------------------------
 
 import axiosClient from "@/lib/axios-client";
+import { getAllBookings } from "@/services/booking.service";
+import type { BookingListResponse } from "@/features/bookings/types/booking.type";
 import type {
   Payment,
   PaymentListResponse,
@@ -69,53 +71,11 @@ export const getRemainingDebt = async (sessionId: number): Promise<{
   };
 };
 
+export { getAllBookings };
 
-
-export interface RideSessionMinimal {
-  id: number;
-  plate: string;
-  ticket_code: string;
-  status: string;
-}
-
-export const getSessionByPlate = async (plate: string): Promise<RideSessionMinimal | null> => {
-  if (!plate || plate.trim() === "") return null;
-  const response = await axiosClient.get(`/ride-sessions?plate=${encodeURIComponent(plate)}&status=IN_PROGRESS`);
-  const data = response.data?.data;
-  if (Array.isArray(data) && data.length > 0) {
-    // Return the latest one
-    return data[0] as RideSessionMinimal;
-  }
-  return null;
-};
-
-export const getAllSessions = async (): Promise<any[]> => {
-  const response = await axiosClient.get(`/sessions`);
-  const data = response.data?.data;
-  return Array.isArray(data) ? data : [];
-};
-
-export const getSessionById = async (id: number): Promise<any | null> => {
-  const response = await axiosClient.get(`/sessions`);
-  const data = response.data?.data;
-  if (Array.isArray(data)) {
-    return data.find((s: any) => s.id === id) || null;
-  }
-  return null;
-};
-
-export const getAllBookings = async (): Promise<any[]> => {
-  const response = await axiosClient.get(`/bookings`);
-  // The API returns the list directly or inside data? Let's check BookingController
-  // `ResponseEntity.ok(response)` which means it returns a List directly, NOT wrapped in { data: ... }
-  // Wait, let's verify. Usually Spring Boot returns the list directly if not wrapped in a custom response object.
-  // I'll just check if it's an array.
-  return Array.isArray(response.data) ? response.data : [];
-};
-
-export const getBookingById = async (id: number): Promise<any | null> => {
+export const getBookingById = async (id: number): Promise<BookingListResponse | null> => {
   const bookings = await getAllBookings();
-  return bookings.find((b: any) => (b.bookingId ?? b.booking_id) === id) || null;
+  return bookings.find((booking) => booking.bookingId === id) ?? null;
 };
 
 /**
@@ -132,7 +92,7 @@ export const createPayment = async (
 };
 
 /**
- * Staff cập nhật trạng thái thủ công (PENDING → SUCCESS/FAILED)
+ * Quản trị viên cập nhật trạng thái giao dịch từ PENDING sang SUCCESS hoặc FAILED.
  */
 export const updatePaymentStatus = async (
   id: number,

@@ -110,7 +110,7 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Đăng ký tài khoản</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Tạo tài khoản khách thuê phương tiện trên hệ thống Project_ITS.
+            Tạo tài khoản khách thuê phương tiện trên hệ thống ITS-Shared-Mobility.
           </p>
         </div>
 

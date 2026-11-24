@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * Entity đại diện cho bảng ride_session trong SQL Server.
- * Ghi nhận lịch sử gửi xe thực tế (check-in / check-out).
+ * Ghi nhận thời gian, phương tiện và cước của một chuyến đi.
  */
 @Entity
 @Table(name = "ride_session")
@@ -29,17 +29,17 @@ public class RideSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ticket_code", nullable = false, unique = true, length = 50)
-    private String ticketCode;
+    @Column(name = "session_code", nullable = false, unique = true, length = 50)
+    private String sessionCode;
 
     @Column(nullable = false, length = 20)
     private String plate;
 
-    @Column(name = "time_in", nullable = false)
-    private LocalDateTime timeIn;
+    @Column(name = "started_at", nullable = false)
+    private LocalDateTime startedAt;
 
-    @Column(name = "time_out")
-    private LocalDateTime timeOut;
+    @Column(name = "ended_at")
+    private LocalDateTime endedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

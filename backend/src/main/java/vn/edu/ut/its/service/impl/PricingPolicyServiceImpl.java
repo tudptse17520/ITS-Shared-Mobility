@@ -193,7 +193,7 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
      */
     private void checkRideSessionConstraint(Long vehicleTypeId, String errorMessage) {
         boolean hasInProgressSession = rideSessionRepository
-                .existsByVehicle_VehicleType_IdAndStatus(vehicleTypeId, RideSessionStatus.IN_PROGRESS);
+                .existsByVehicle_VehicleType_IdAndStatusAndEndedAtIsNull(vehicleTypeId, RideSessionStatus.IN_PROGRESS);
 
         if (hasInProgressSession) {
             throw new BusinessRuleViolationException(errorMessage);

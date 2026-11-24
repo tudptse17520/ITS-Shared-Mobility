@@ -1,4 +1,4 @@
-export type IssueType = "LOST_TICKET" | "WRONG_PLATE" | "OVERTIME" | "WRONG_PLACE" | "UNPAID_EXIT";
+export type IssueType = "OTHER" | "WRONG_PLATE" | "RIDE_OVERTIME" | "WRONG_RETURN_LOCATION" | "UNPAID_RIDE";
 
 export type FeedbackStatus = "REPORTED" | "PROCESSING" | "RESOLVED";
 

@@ -4,13 +4,13 @@ import vn.edu.ut.its.dto.report.DashboardReportDTO;
 import vn.edu.ut.its.dto.report.OccupancyRateReportDTO;
 import vn.edu.ut.its.dto.report.PeakHourReportDTO;
 import vn.edu.ut.its.dto.report.RevenueReportDTO;
-import vn.edu.ut.its.dto.report.VehicleEntryExitReportDTO;
+import vn.edu.ut.its.dto.report.RideFlowReportDTO;
 
 public interface ReportService {
 
     RevenueReportDTO getRevenueReport(String startDate, String endDate);
 
-    VehicleEntryExitReportDTO getVehicleEntryExitReport(String startDate, String endDate, Long vehicleTypeId);
+    RideFlowReportDTO getRideFlowReport(String startDate, String endDate, Long vehicleTypeId);
 
     OccupancyRateReportDTO getOccupancyRateReport(String startDate, String endDate, Long vehicleTypeId);
 

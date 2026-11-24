@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 
 /**
  * Entity đại diện cho bảng payment trong SQL Server.
- * Ghi nhận thanh toán chi phí gửi xe hoặc tiền cọc đặt chỗ.
+ * Ghi nhận thanh toán cước chuyến đi hoặc tiền cọc đặt giữ xe.
  */
 @Entity
 @Table(name = "payment")

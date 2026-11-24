@@ -1,8 +1,8 @@
 export interface BookingRequest {
   vehicleId: number;
   stationDockId: number;
-  expectedTimeIn: string; // ISO DateTime string or DD-MM-YYYY HH:mm:ss based on backend preference
-  expectedTimeOut: string; 
+  plannedStartAt: string; // ISO DateTime string or DD-MM-YYYY HH:mm:ss based on backend preference
+  plannedEndAt: string;
 }
 
 export interface BookingResponse {
@@ -15,14 +15,14 @@ export interface BookingListResponse {
   bookingId: number;
   stationDockId: number;
   stationDockName?: string;
-  expectedTimeIn: string;
+  plannedStartAt: string;
   status: string;
 }
 
 export const BOOKING_STATUS = {
   PENDING: "PENDING",
   CONFIRMED: "CONFIRMED",
-  CHECKED_IN: "CHECKED_IN",
+  USED: "USED",
   CANCELLED: "CANCELLED",
   EXPIRED: "EXPIRED",
 } as const;
