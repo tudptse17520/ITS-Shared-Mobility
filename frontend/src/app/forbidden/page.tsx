@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, ArrowLeft } from "lucide-react";
+import { ShieldWarningIcon as ShieldAlert, ArrowLeftIcon as ArrowLeft } from "@phosphor-icons/react/ssr";
 
 export default function ForbiddenPage() {
   return (
