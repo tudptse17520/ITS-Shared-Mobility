@@ -69,24 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // Có lỗi xác thực token (hết hạn, sai chữ ký, ...)
-            // Bỏ qua để filter khác xử lý (sẽ bị block vì không có authentication)
-        }
-
-        // TẠM THỜI: Bỏ qua JWT và Inject một dummy User nếu chưa có (Phục vụ Demo)
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            User dummyUser = userRepository.findAll().stream()
-                    .filter(u -> u.getRole() == vn.edu.ut.its.constant.Role.ADMIN)
-                    .findFirst().orElse(null);
-            if (dummyUser != null) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        dummyUser,
-                        null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + dummyUser.getRole().name()))
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

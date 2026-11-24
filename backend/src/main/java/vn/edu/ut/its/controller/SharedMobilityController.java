@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.ut.its.dto.mobility.*;
 import vn.edu.ut.its.dto.response.ApiResponse;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/mobility")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 @Tag(name = "Shared Mobility (ITS)", description = "API tìm xe gần nhất, đặt giữ xe chống trùng lặp, mở khóa QR và quản lý chuyến đi")
 public class SharedMobilityController {
 

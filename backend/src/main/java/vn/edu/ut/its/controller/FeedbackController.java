@@ -38,12 +38,14 @@ public class FeedbackController {
     }
 
     @Operation(summary = "Lấy chi tiết sự cố theo ID")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<FeedbackResponse> getFeedbackById(@PathVariable Long id) {
         return ResponseEntity.ok(feedbackService.getFeedbackById(id));
     }
 
     @Operation(summary = "Tạo mới sự cố", description = "Ghi nhận sự cố mới gắn liền với chuyến đi")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PostMapping
     public ResponseEntity<FeedbackResponse> createFeedback(@Valid @RequestBody FeedbackRequest request) {
         return ResponseEntity.ok(feedbackService.createFeedback(request));
