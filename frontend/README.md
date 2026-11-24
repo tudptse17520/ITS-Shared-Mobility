@@ -16,7 +16,7 @@ frontend/
 │   ├── stores/          # Global client state (Zustand stores)
 │   ├── types/           # TypeScript types/interfaces matching Backend Entities
 │   └── utils/           # Global helper functions (formatters)
-└── src/middleware.ts    # Role-based route guard (JWT cookie)
+└── src/proxy.ts         # Role-based route guard (JWT cookie)
 ```
 
 ## Web routes

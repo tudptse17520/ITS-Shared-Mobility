@@ -38,7 +38,7 @@ export const useCreateVehicleType = () => {
       queryClient.invalidateQueries({ queryKey: VEHICLE_TYPES_QUERY_KEY });
       toast.success(`Thêm loại xe "${variables.typeName}" thành công!`);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi thêm loại xe");
     }
   });
@@ -57,7 +57,7 @@ export const useUpdateVehicleType = () => {
       queryClient.invalidateQueries({ queryKey: VEHICLE_TYPES_QUERY_KEY });
       toast.success(`Cập nhật loại xe "${variables.data.typeName}" thành công!`);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi cập nhật loại xe");
     }
   });
@@ -72,7 +72,7 @@ export const useDeactivateVehicleType = () => {
       queryClient.invalidateQueries({ queryKey: VEHICLE_TYPES_QUERY_KEY });
       toast.success(`Ngừng hoạt động loại xe "${variables.typeName}" thành công!`);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra");
     }
   });
@@ -87,7 +87,7 @@ export const useDeleteVehicleType = () => {
       queryClient.invalidateQueries({ queryKey: VEHICLE_TYPES_QUERY_KEY });
       toast.success(`Xóa loại xe "${variables.typeName}" thành công!`);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Không thể xóa loại xe");
     }
   });

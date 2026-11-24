@@ -82,7 +82,7 @@ export default function FeedbacksPage() {
     let data = response?.data || [];
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
-      data = data.filter((item: any) => {
+      data = data.filter((item: Feedback) => {
         const mockLicensePlate = `51f-${100 + (item.id % 900)}.${10 + (item.id % 90)}`.toLowerCase();
         return (
           String(item.id).toLowerCase().includes(lowerQuery) ||

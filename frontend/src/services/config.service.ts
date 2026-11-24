@@ -1,6 +1,5 @@
 import axiosClient from "@/lib/axios-client";
 import {
-  SystemConfig,
   SystemConfigRequest,
   SystemConfigListResponse,
   SystemConfigUpdateResponse,

@@ -47,8 +47,9 @@ export const useCreateBooking = () => {
       });
       toast.success("Đặt chỗ thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Đặt chỗ thất bại");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Đặt chỗ thất bại");
     }
   });
 };
@@ -67,8 +68,9 @@ export const useCancelBooking = () => {
       });
       toast.success("Hủy đặt chỗ thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Hủy đặt chỗ thất bại");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Hủy đặt chỗ thất bại");
     }
   });
 };
@@ -88,8 +90,9 @@ export const useUpdateBookingStatus = () => {
       });
       toast.success("Cập nhật trạng thái đặt chỗ thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Cập nhật trạng thái thất bại");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Cập nhật trạng thái thất bại");
     }
   });
 };
@@ -108,8 +111,9 @@ export const useDeleteBooking = () => {
       });
       toast.success("Xóa đặt chỗ thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Xóa đặt chỗ thất bại");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Xóa đặt chỗ thất bại");
     }
   });
 };

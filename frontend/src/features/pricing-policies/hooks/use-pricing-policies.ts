@@ -74,7 +74,7 @@ export const useCreatePricingPolicy = () => {
       });
       toast.success("Thêm bảng giá mới thành công!");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi thêm bảng giá");
     }
   });
@@ -98,7 +98,7 @@ export const useUpdatePricingPolicy = () => {
       });
       toast.success("Cập nhật bảng giá thành công!");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi cập nhật bảng giá");
     }
   });
@@ -118,7 +118,7 @@ export const useDeletePricingPolicy = () => {
       });
       toast.success("Xóa bảng giá thành công!");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi xóa bảng giá");
     }
   });

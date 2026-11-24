@@ -7,7 +7,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -51,7 +51,7 @@ export function DateRangePicker({ className, date, onDateChange }: DateRangePick
             mode="range"
             defaultMonth={date?.from}
             selected={date}
-            onSelect={onDateChange as any}
+            onSelect={onDateChange}
             numberOfMonths={2}
             locale={vi}
           />

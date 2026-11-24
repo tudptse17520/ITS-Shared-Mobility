@@ -29,6 +29,7 @@ import { ADMIN_NAV } from "@/config/navigation";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { removeCookie } from "@/utils/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState } from "react";
 import { ProfileDialog } from "./profile-dialog";
@@ -39,6 +40,7 @@ export function Topbar() {
   const router = useRouter();
   const clearUser = useAuthStore((state) => state.clearUser);
   const user = useAuthStore((state) => state.user);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const { setTheme, theme } = useThemeStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -137,15 +139,27 @@ export function Topbar() {
             <DropdownMenuTrigger render={
               <Button variant="ghost" className="relative h-10 w-10 rounded-full md:h-auto md:w-auto md:px-2 md:py-1.5 md:flex md:gap-2" />
             }>
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>{(user?.fullName || "User").substring(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="hidden flex-col items-start md:flex">
-                  <span className="text-sm font-medium">{user?.fullName || "Người dùng"}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {user?.role === "ADMIN" ? "Quản trị viên" : "Khách thuê"}
-                  </span>
-                </div>
+                {isHydrated || user ? (
+                  <>
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>{(user?.fullName || "User").substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="hidden flex-col items-start md:flex">
+                      <span className="text-sm font-medium">{user?.fullName || "Người dùng"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {user?.role === "ADMIN" ? "Quản trị viên" : "Khách thuê"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="hidden flex-col gap-1 md:flex">
+                      <Skeleton className="h-3.5 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                )}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuGroup>

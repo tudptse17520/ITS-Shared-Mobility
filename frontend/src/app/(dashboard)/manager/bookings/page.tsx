@@ -24,7 +24,7 @@ export default function ManagerBookingsPage() {
 
   // Enrich raw data with fallback context & apply filters (ưu tiên dữ liệu thật từ Backend)
   const bookings = useMemo<BookingContextData[]>(() => {
-    let enriched = rawBookings.map((b: any) => {
+    let enriched = rawBookings.map((b: BookingContextData) => {
       const mock = MOCK_CONTEXT[b.bookingId];
       return {
         ...b,

@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
-import { Toolbar } from "@/components/common/toolbar";
 import { DateRangePicker } from "@/components/common/date-range-picker";
 import { DashboardKpiCards } from "@/features/reports/components/dashboard-kpi-cards";
 import { RevenueChart } from "@/features/reports/components/revenue-chart";

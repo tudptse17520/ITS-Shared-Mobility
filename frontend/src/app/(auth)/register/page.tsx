@@ -87,9 +87,10 @@ export default function RegisterPage() {
 
       toast.success(res.message || "Đăng ký tài khoản thành công!");
       router.push("/profile");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
       const msg =
-        err?.response?.data?.message ||
+        apiErr?.response?.data?.message ||
         "Đăng ký thất bại (tên đăng nhập hoặc số điện thoại có thể đã tồn tại).";
       setErrorMsg(msg);
       toast.error(msg);

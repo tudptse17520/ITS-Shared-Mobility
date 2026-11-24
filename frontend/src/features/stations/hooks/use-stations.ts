@@ -48,8 +48,9 @@ export const useCreateStation = () => {
         bg: "bg-blue-500/10",
       });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi thêm trạm xe");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Đã có lỗi xảy ra khi thêm trạm xe");
     }
   });
 };
@@ -74,8 +75,9 @@ export const useUpdateStation = () => {
         bg: "bg-amber-500/10",
       });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Đã có lỗi xảy ra khi cập nhật trạm xe");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Đã có lỗi xảy ra khi cập nhật trạm xe");
     }
   });
 };
@@ -89,8 +91,9 @@ export const useUpdateStationStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['stations'] });
       toast.success("Cập nhật trạng thái trạm xe thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Đã có lỗi xảy ra");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Đã có lỗi xảy ra");
     }
   });
 };
@@ -104,8 +107,9 @@ export const useDeleteStation = () => {
       queryClient.invalidateQueries({ queryKey: ['stations'] });
       toast.success("Xóa trạm xe thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Không thể xóa trạm xe");
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Không thể xóa trạm xe");
     }
   });
 };

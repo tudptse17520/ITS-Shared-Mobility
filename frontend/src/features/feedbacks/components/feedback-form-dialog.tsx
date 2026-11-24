@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
@@ -17,6 +17,7 @@ import { useFeedbackActions } from "../hooks/use-feedback-actions";
 import { useSessionsList } from "@/features/ride-sessions/hooks/use-ride-sessions";
 import { Portal } from "@/components/common/portal";
 import { SESSION_STATUS_LABELS } from "@/constants/session-status";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 interface FeedbackFormDialogProps {
   feedback: Feedback | null;
@@ -33,14 +34,14 @@ export function FeedbackFormDialog({
 }: FeedbackFormDialogProps) {
   const { createFeedbackMutation, updateFeedbackMutation } = useFeedbackActions();
   const { data: sessionsResp } = useSessionsList();
-  const sessions = sessionsResp?.data || [];
+  const sessions = useMemo(() => sessionsResp?.data ?? [], [sessionsResp?.data]);
   const isEditing = !!feedback;
 
   const {
     register,
     handleSubmit,
     reset,
-    watch,
+    getValues,
     setValue,
     formState: { errors },
   } = useForm<FeedbackFormValues>({
@@ -73,12 +74,12 @@ export function FeedbackFormDialog({
 
   useEffect(() => {
     if (isOpen && !feedback && sessions.length > 0) {
-      const currentSessionId = watch("rideSessionId");
+      const currentSessionId = getValues("rideSessionId");
       if (!currentSessionId || currentSessionId === 0) {
         setValue("rideSessionId", sessions[0].id);
       }
     }
-  }, [isOpen, feedback, sessions, watch, setValue]);
+  }, [isOpen, feedback, sessions, getValues, setValue]);
 
   const onSubmit = (values: FeedbackFormValues) => {
     if (readOnly) {
@@ -94,8 +95,8 @@ export function FeedbackFormDialog({
             toast.success("Cập nhật sự cố thành công");
             onClose();
           },
-          onError: (error: any) => {
-            toast.error(error.response?.data?.message || "Lỗi khi cập nhật");
+          onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, "Lỗi khi cập nhật"));
           },
         }
       );
@@ -105,8 +106,8 @@ export function FeedbackFormDialog({
           toast.success("Ghi nhận sự cố thành công");
           onClose();
         },
-        onError: (error: any) => {
-          toast.error(error.response?.data?.message || "Lỗi khi tạo sự cố");
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, "Lỗi khi tạo sự cố"));
         },
       });
     }

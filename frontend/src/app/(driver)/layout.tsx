@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bike, Moon, Sun, LogOut } from "lucide-react";
@@ -10,6 +10,8 @@ import { useThemeStore } from "@/stores/theme.store";
 import { getDriverNavItems } from "@/config/menu";
 import { removeCookie } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
+
+const emptySubscribe = () => () => {};
 
 export default function DriverLayout({
   children,
@@ -21,11 +23,11 @@ export default function DriverLayout({
   const { theme, setTheme } = useThemeStore();
   const navItems = getDriverNavItems();
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");

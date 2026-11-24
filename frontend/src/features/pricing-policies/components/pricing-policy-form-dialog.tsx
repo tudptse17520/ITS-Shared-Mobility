@@ -6,8 +6,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { PricingPolicy } from "@/features/pricing-policies/types/pricing-policy.type";
@@ -16,7 +16,7 @@ import {
   PricingPolicyFormValues,
 } from "@/features/pricing-policies/schemas/pricing-policy.schema";
 import { VehicleType } from "@/features/vehicle-types/types/vehicle-type.type";
-import { FormContainer, FormHeader, FormFields, FormActions } from "@/components/common/form-container";
+import { FormContainer, FormHeader, FormFields } from "@/components/common/form-container";
 import { Portal } from "@/components/common/portal";
 
 interface PricingPolicyFormDialogProps {
@@ -67,6 +67,7 @@ export function PricingPolicyFormDialog({
     handleSubmit,
     reset,
     setValue,
+    control,
     formState: { errors },
   } = useForm<PricingPolicyFormValues>({
     resolver: zodResolver(pricingPolicySchema),
@@ -78,16 +79,13 @@ export function PricingPolicyFormDialog({
     },
   });
 
-  const [inputDate, setInputDate] = useState("");
+  const effectiveDateValue = useWatch({ control, name: "effectiveDate" });
+  const inputDate = effectiveDateValue ? toInputDate(effectiveDateValue) : "";
 
   // Reset form khi mở dialog hoặc khi defaultValues thay đổi
   useEffect(() => {
     if (open) {
       if (defaultValues) {
-        const formatted = defaultValues.effectiveDate
-          ? toInputDate(defaultValues.effectiveDate)
-          : "";
-        setInputDate(formatted);
         reset({
           vehicleTypeId: defaultValues.vehicleTypeId,
           basePrice: defaultValues.basePrice,
@@ -96,7 +94,6 @@ export function PricingPolicyFormDialog({
         });
       } else {
         const today = new Date().toISOString().split("T")[0];
-        setInputDate(today);
         reset({
           vehicleTypeId: 0,
           basePrice: 0,
@@ -243,7 +240,6 @@ export function PricingPolicyFormDialog({
                     value={inputDate}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setInputDate(val);
                       setValue("effectiveDate", val ? toApiDate(val) : "", {
                         shouldValidate: true,
                       });

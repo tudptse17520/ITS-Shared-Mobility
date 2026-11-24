@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/common/data-table";
 import { BookingStatusBadge } from "./booking-status-badge";
@@ -63,12 +63,15 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
     }
   };
 
-  const handleConfirmBooking = (booking: BookingContextData) => {
-    updateStatusMutation.mutate({
-      bookingId: booking.bookingId,
-      status: "CONFIRMED",
-    });
-  };
+  const handleConfirmBooking = useCallback(
+    (booking: BookingContextData) => {
+      updateStatusMutation.mutate({
+        bookingId: booking.bookingId,
+        status: "CONFIRMED",
+      });
+    },
+    [updateStatusMutation]
+  );
 
   const handleOpenDelete = (booking: BookingContextData) => {
     setSelectedBooking(booking);
@@ -213,7 +216,7 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
         },
       },
     ],
-    [isManagerView, updateStatusMutation.isPending]
+    [handleConfirmBooking, isManagerView, updateStatusMutation.isPending]
   );
 
   return (

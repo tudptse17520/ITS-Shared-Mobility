@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { useAuthStore } from "@/stores/auth.store";
@@ -15,7 +15,6 @@ import {
   User,
   Phone,
   Shield,
-  CreditCard,
   Clock,
   CheckCircle2,
   XCircle,

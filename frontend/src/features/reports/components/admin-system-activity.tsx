@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShieldAlert, UserPlus, Settings, UserMinus, Edit, MapPin, Plus } from "lucide-react";
+import {
+  ShieldAlert,
+  UserPlus,
+  Settings,
+  UserMinus,
+  Edit,
+  MapPin,
+  Plus,
+  type LucideIcon,
+} from "lucide-react";
 import { useActivityStore } from "@/stores/activity.store";
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   UserPlus,
   UserMinus,
   Settings,
@@ -15,8 +24,9 @@ const iconMap: Record<string, any> = {
   MapPinPlus: Plus,
 };
 
-function getTimeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+function getTimeAgo(timestamp: number, now: number): string {
+  if (!now || now <= timestamp) return "Vừa xong";
+  const seconds = Math.floor((now - timestamp) / 1000);
   if (seconds < 60) return "Vừa xong";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} phút trước`;
@@ -26,29 +36,35 @@ function getTimeAgo(timestamp: number): string {
   return `${days} ngày trước`;
 }
 
+const emptySubscribe = () => () => {};
+
 export function AdminSystemActivity() {
   const activities = useActivityStore((state) => state.activities);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-  const [isMounted, setIsMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const isMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
-  // Trigger a re-render every minute to update "time ago"
   useEffect(() => {
-    setIsMounted(true);
+    const initialTick = setTimeout(() => setCurrentTime(Date.now()), 0);
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTick);
+      clearInterval(interval);
+    };
   }, []);
 
   if (!isMounted) {
-    return null; // Or a loading skeleton
+    return null;
   }
 
   return (
     <Card className="col-span-1 shadow-sm border-white/5 bg-background">
       <CardHeader>
         <CardTitle>Nhật ký hệ thống</CardTitle>
-        <CardDescription>
-          Hoạt động quản trị gần đây
-        </CardDescription>
+        <CardDescription>Hoạt động quản trị gần đây</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-6 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
@@ -60,11 +76,9 @@ export function AdminSystemActivity() {
                   <Icon className={`h-5 w-5 ${activity.color}`} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {activity.title}
-                  </p>
+                  <p className="text-sm font-medium leading-none">{activity.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {getTimeAgo(activity.timestamp)}
+                    {getTimeAgo(activity.timestamp, currentTime)}
                   </p>
                 </div>
               </div>

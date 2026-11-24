@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { useSyncExternalStore, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 interface PortalProps {
   children: ReactNode;
 }
 
-export function Portal({ children }: PortalProps) {
-  const [mounted, setMounted] = useState(false);
+const emptySubscribe = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
+export function Portal({ children }: PortalProps) {
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   if (!mounted) return null;
 

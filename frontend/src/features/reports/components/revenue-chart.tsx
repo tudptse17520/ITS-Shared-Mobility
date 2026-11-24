@@ -61,7 +61,7 @@ export function RevenueChart({ filter }: RevenueChartProps) {
         if (name && name.includes("-")) {
           try {
             name = format(parseISO(name), "dd MMM", { locale: vi });
-          } catch (e) {
+          } catch {
             // Fallback if not ISO date
           }
         }
