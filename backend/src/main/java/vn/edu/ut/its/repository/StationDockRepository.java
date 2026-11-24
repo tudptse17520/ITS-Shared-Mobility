@@ -21,4 +21,7 @@ public interface StationDockRepository extends JpaRepository<StationDock, Long> 
     
     // Đếm số lượng vị trí dock theo khu trạm và trạng thái
     long countByStationZoneIdAndStatus(Long stationZoneId, StationDockStatus status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT d.stationZone.station.id, COUNT(d) FROM StationDock d WHERE d.status = :status GROUP BY d.stationZone.station.id")
+    List<Object[]> countDocksGroupedByStation(@org.springframework.data.repository.query.Param("status") StationDockStatus status);
 }

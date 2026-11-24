@@ -75,17 +75,17 @@ public class StationServiceImpl implements StationService {
 
         List<Station> stations = entityManager.createQuery(query).getResultList();
 
+        java.util.Map<Long, Long> availableDocksByStation = new java.util.HashMap<>();
+        for (Object[] row : stationDockRepository.countDocksGroupedByStation(StationDockStatus.AVAILABLE)) {
+            if (row[0] instanceof Long stId && row[1] instanceof Number cnt) {
+                availableDocksByStation.put(stId, cnt.longValue());
+            }
+        }
+
         List<StationDetailResponseDTO> detailList = stations.stream()
                 .map(station -> {
                     StationDetailResponseDTO dto = modelMapper.map(station, StationDetailResponseDTO.class);
-                    long available = 0L;
-                    if (station.getStationZones() != null) {
-                        for (StationZone stationZone : station.getStationZones()) {
-                            available += stationDockRepository.countByStationZoneIdAndStatus(
-                                    stationZone.getId(), StationDockStatus.AVAILABLE);
-                        }
-                    }
-                    dto.setTotalAvailableDocks(available);
+                    dto.setTotalAvailableDocks(availableDocksByStation.getOrDefault(station.getId(), 0L));
                     return dto;
                 })
                 .collect(Collectors.toList());
