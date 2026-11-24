@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { StationStatusBadge } from './station-status-badge';
 import type { StationResponse } from '@/types/station.type';
 import { Button } from '@/components/ui/button';
-import { Edit2, Ban, Trash2 } from 'lucide-react';
+import { PencilSimpleLineIcon as Edit2, ProhibitIcon as Ban, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import { useUpdateStationStatus, useDeleteStation } from '../hooks/use-stations';
 
 interface StationTableProps {
