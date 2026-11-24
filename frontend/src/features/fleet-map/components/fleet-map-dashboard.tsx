@@ -3,23 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
-import {
-  Activity,
-  BatteryCharging,
-  Bike,
-  Lock,
-  MapPin,
-  Maximize2,
-  Navigation,
-  Play,
-  QrCode,
-  RefreshCw,
-  ShieldAlert,
-  Square,
-  Unlock,
-  Wrench,
-  Zap,
-} from "lucide-react";
+import { PulseIcon as Activity, BatteryChargingIcon as BatteryCharging, BicycleIcon as Bike, LockKeyIcon as Lock, MapPinIcon as MapPin, ArrowsOutIcon as Maximize2, NavigationArrowIcon as Navigation, PlayIcon as Play, QrCodeIcon as QrCode, ArrowsClockwiseIcon as RefreshCw, ShieldWarningIcon as ShieldAlert, SquareIcon as Square, LockKeyOpenIcon as Unlock, WrenchIcon as Wrench, LightningIcon as Zap } from "@phosphor-icons/react/ssr";
 
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
@@ -62,6 +46,17 @@ function statusBadgeClass(status: string): string {
   }
 }
 
+function fleetLabel(status: string) {
+  switch (status) {
+    case "AVAILABLE": return "Sẵn sàng";
+    case "IN_USE": return "Đang thuê";
+    case "RESERVED": return "Đang giữ";
+    case "LOW_BATTERY": return "Pin yếu";
+    case "MAINTENANCE": return "Bảo trì";
+    default: return "Tạm ngưng";
+  }
+}
+
 export function FleetMapDashboard() {
   const [stations, setStations] = useState<StationItem[]>([]);
   const [vehicles, setVehicles] = useState<FleetVehicleItem[]>([]);
@@ -70,7 +65,7 @@ export function FleetMapDashboard() {
   const [activeSimSession, setActiveSimSession] = useState<RideSessionItem | null>(null);
   const [isAutoSimulating, setIsAutoSimulating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [sseConnected, setSseConnected] = useState(true);
+  const [sseConnected, setSseConnected] = useState(false);
   const [concurrencyResult, setConcurrencyResult] = useState<{
     total: number;
     success: number;
@@ -89,16 +84,16 @@ export function FleetMapDashboard() {
       ]);
       setStations(stationList);
       setVehicles(vehicleList);
-      if (vehicleList.length > 0 && selectedVehicleId === null) {
-        setSelectedVehicleId(vehicleList[0].id);
-      }
+      setSelectedVehicleId((current) => current ?? vehicleList[0]?.id ?? null);
     } catch (error) {
       console.error("Failed to fetch fleet data:", error);
       toast.error("Không thể tải dữ liệu đội xe từ Backend.");
     } finally {
       setIsLoading(false);
     }
-  }, [selectedVehicleId]);
+  }, []);
+
+  const selectVehicle = useCallback((vehicle: FleetVehicleItem) => setSelectedVehicleId(vehicle.id), []);
 
   useEffect(() => {
     fetchData();
@@ -267,10 +262,10 @@ export function FleetMapDashboard() {
 
   return (
     <PageContainer>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeader
-          title="Bản đồ Đội xe & Mô phỏng IoT (VietMap)"
-          description="Giám sát vị trí GPS, dung lượng pin, trạng thái khóa thông minh theo thời gian thực qua SSE"
+          title="Bản đồ đội xe"
+          description="Vị trí, pin và trạng thái xe tại TP. Hồ Chí Minh."
         />
         <div className="flex items-center gap-2">
           <Badge
@@ -282,7 +277,7 @@ export function FleetMapDashboard() {
             }
           >
             <Activity className="w-3.5 h-3.5 mr-1.5" />
-            {sseConnected ? "SSE Realtime Connected" : "SSE Reconnecting..."}
+            {sseConnected ? "Đang cập nhật" : "Đang kết nối"}
           </Badge>
           <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
             <RefreshCw className="w-4 h-4 mr-1.5" />
@@ -291,51 +286,25 @@ export function FleetMapDashboard() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Tổng đội xe</p>
-              <p className="text-2xl font-bold mt-1">{stats.total}</p>
-            </div>
-            <Bike className="h-8 w-8 text-indigo-500 opacity-80" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Sẵn sàng thuê</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.available}</p>
-            </div>
-            <MapPin className="h-8 w-8 text-emerald-500 opacity-80" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Đang chạy trên đường</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.inUse}</p>
-            </div>
-            <Navigation className="h-8 w-8 text-blue-500 opacity-80" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase font-semibold">Pin yếu / Bảo trì</p>
-              <p className="text-2xl font-bold text-rose-600 mt-1">{stats.attention}</p>
-            </div>
-            <ShieldAlert className="h-8 w-8 text-rose-500 opacity-80" />
-          </CardContent>
-        </Card>
-      </div>
+      <dl aria-label="Tình hình đội xe" className="operations-metrics its-stagger">
+        {[
+          { label: "Tổng xe", value: stats.total, Icon: Bike, tone: "fleet" },
+          { label: "Sẵn sàng", value: stats.available, Icon: MapPin, tone: "ready" },
+          { label: "Đang cho thuê", value: stats.inUse, Icon: Navigation, tone: "trip" },
+          { label: "Cần chú ý", value: stats.attention, Icon: ShieldAlert, tone: "alert" },
+        ].map(({ label, value, Icon, tone }) => (
+          <div key={label} className="px-4 py-3 sm:px-5">
+            <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm"><span data-tone={tone} className="metric-symbol grid size-7 shrink-0 place-items-center rounded-md"><Icon className="size-4" /></span> {label}</dt>
+            <dd className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* Main Map + IoT Simulator Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Bản đồ Số VietMap · TP. Hồ Chí Minh</CardTitle>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(330px,365px)_minmax(0,1fr)]">
+        <Card className="min-w-0 gap-3 xl:col-start-2 xl:row-start-1">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">TP. Hồ Chí Minh</CardTitle>
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Sẵn sàng</span>
               <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Đang thuê</span>
@@ -345,22 +314,54 @@ export function FleetMapDashboard() {
           </CardHeader>
           <CardContent>
             <VietMapLeaflet
+              className="h-[clamp(365px,62dvh,760px)]"
               stations={stations}
               vehicles={vehicles}
               selectedVehicleId={selectedVehicleId}
               telemetryPath={telemetryPath}
-              onSelectVehicle={(v) => setSelectedVehicleId(v.id)}
+              onSelectVehicle={selectVehicle}
             />
           </CardContent>
         </Card>
 
         {/* IoT Simulator & Concurrency Control Panel */}
-        <div className="space-y-4">
+        <aside className="space-y-4 xl:col-start-1 xl:row-start-1" aria-label="Xe đang theo dõi">
+          {/* Danh sách xe rút gọn */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Đội xe ({vehicles.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-[13rem] space-y-1.5 overflow-y-auto">
+              {vehicles.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  aria-pressed={v.id === selectedVehicleId}
+                  onClick={() => selectVehicle(v)}
+                  className={`its-interactive flex w-full items-center justify-between gap-2.5 rounded-xl border px-2.5 py-2 text-left text-xs ${
+                    v.id === selectedVehicleId
+                      ? "border-primary bg-primary/10"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
+                  <div>
+                    <div className="font-semibold">{v.vehicleCode} · {v.brand}</div>
+                    <div className="text-muted-foreground">{v.currentStationName}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-semibold">{v.batteryLevel}%</div>
+                    <div className="text-[10px] text-muted-foreground">{fleetLabel(v.fleetStatus)}</div>
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-500" />
-                Bảng điều khiển Giả lập IoT
+                Điều khiển xe
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -370,7 +371,7 @@ export function FleetMapDashboard() {
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">{selectedVehicle.vehicleCode}</span>
                       <Badge variant="outline" className={statusBadgeClass(selectedVehicle.fleetStatus)}>
-                        {selectedVehicle.fleetStatus}
+                        {fleetLabel(selectedVehicle.fleetStatus)}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -378,7 +379,7 @@ export function FleetMapDashboard() {
                     </p>
                     <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
                       <div>Pin: <strong>{selectedVehicle.batteryLevel}%</strong></div>
-                      <div>Khóa: <strong>{selectedVehicle.lockStatus}</strong></div>
+                      <div>Khóa: <strong>{selectedVehicle.lockStatus === "LOCKED" ? "Đã khóa" : "Đã mở"}</strong></div>
                       <div className="col-span-2 text-muted-foreground">
                         GPS: {selectedVehicle.latitude?.toFixed(5)}, {selectedVehicle.longitude?.toFixed(5)}
                       </div>
@@ -397,7 +398,7 @@ export function FleetMapDashboard() {
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300">
                         <QrCode className="w-3.5 h-3.5" />
-                        Tem QR Mở khóa xe
+                        Mã QR mở khóa
                       </div>
                       <p className="text-[11px] font-mono text-muted-foreground truncate">
                         its://unlock?code={selectedVehicle.vehicleCode}
@@ -406,11 +407,11 @@ export function FleetMapDashboard() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs w-full"
+                        className="mt-1 h-8 max-w-full px-2 text-xs"
                         onClick={() => setIsQrModalOpen(true)}
                       >
                         <Maximize2 className="w-3 h-3 mr-1" />
-                        Phóng to mã QR để quét
+                        Phóng to mã QR
                       </Button>
                     </div>
                   </div>
@@ -441,7 +442,7 @@ export function FleetMapDashboard() {
                           : handleControl("SET_AVAILABLE")
                       }
                     >
-                      Đặt lại trạng thái AVAILABLE
+                      Cho thuê lại
                     </Button>
                   )}
 
@@ -452,11 +453,11 @@ export function FleetMapDashboard() {
                     {!isAutoSimulating ? (
                       <Button
                         size="sm"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        className="w-full"
                         onClick={handleStartAutoSimulation}
                       >
                         <Play className="w-4 h-4 mr-1.5" />
-                        Chạy Auto-Simulation GPS
+                        Bắt đầu mô phỏng
                       </Button>
                     ) : (
                       <Button
@@ -466,7 +467,7 @@ export function FleetMapDashboard() {
                         onClick={handleStopAutoSimulation}
                       >
                         <Square className="w-4 h-4 mr-1.5" />
-                        Dừng & Khóa xe kết thúc chuyến
+                        Dừng mô phỏng
                       </Button>
                     )}
 
@@ -479,64 +480,33 @@ export function FleetMapDashboard() {
                     )}
                   </div>
 
-                  <div className="border-t pt-3 space-y-2">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">
-                      Thực nghiệm Concurrency (Chương 5)
-                    </p>
+                  <details className="space-y-2 border-t pt-3">
+                    <summary className="cursor-pointer text-sm font-medium">Thử đặt xe cùng lúc</summary>
                     <Button
                       size="sm"
                       variant="outline"
                       className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
                       onClick={handleRunConcurrencyTest}
                     >
-                      Bắn 20 Request đặt cùng xe {selectedVehicle.vehicleCode}
+                      Chạy thử 20 lượt đặt
                     </Button>
                     {concurrencyResult && (
                       <div className="rounded-md bg-muted p-2.5 text-xs space-y-1">
-                        <div>Tổng số request đồng thời: <strong>{concurrencyResult.total}</strong></div>
-                        <div className="text-emerald-600">Thành công (200 OK): <strong>{concurrencyResult.success}</strong></div>
-                        <div className="text-rose-600">Bị chặn (409 Conflict): <strong>{concurrencyResult.conflict}</strong></div>
+                        <div>Số lượt đặt: <strong>{concurrencyResult.total}</strong></div>
+                        <div className="text-emerald-600">Thành công: <strong>{concurrencyResult.success}</strong></div>
+                        <div className="text-rose-600">Bị từ chối: <strong>{concurrencyResult.conflict}</strong></div>
                         <div>Thời gian hoàn tất: <strong>{concurrencyResult.durationMs} ms</strong></div>
                       </div>
                     )}
-                  </div>
+                  </details>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Chọn một phương tiện trên bản đồ hoặc danh sách bên dưới.</p>
+                <p className="text-sm text-muted-foreground">Chọn xe trên bản đồ hoặc trong danh sách.</p>
               )}
             </CardContent>
           </Card>
 
-          {/* Danh sách xe rút gọn */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Danh sách Đội xe ({vehicles.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="max-h-[240px] overflow-y-auto space-y-1.5">
-              {vehicles.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setSelectedVehicleId(v.id)}
-                  className={`w-full flex items-center justify-between rounded-lg border px-2.5 py-2 text-left text-xs transition ${
-                    v.id === selectedVehicleId
-                      ? "border-primary bg-primary/10"
-                      : "hover:bg-muted/50"
-                  }`}
-                >
-                  <div>
-                    <div className="font-semibold">{v.vehicleCode} · {v.brand}</div>
-                    <div className="text-muted-foreground">{v.currentStationName}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{v.batteryLevel}%</div>
-                    <div className="text-[10px] text-muted-foreground">{v.fleetStatus}</div>
-                  </div>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+        </aside>
       </div>
 
       {selectedVehicle && (
@@ -545,26 +515,27 @@ export function FleetMapDashboard() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <QrCode className="w-5 h-5 text-teal-600" />
-                Tem Mã QR · {selectedVehicle.vehicleCode}
+                Mã QR · {selectedVehicle.vehicleCode}
               </DialogTitle>
               <DialogDescription>
                 {selectedVehicle.brand} · Biển số {selectedVehicle.plate}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-2">
-              <div className="rounded-xl border-2 border-teal-500/40 bg-white p-4 shadow-sm">
+              <div className="w-full max-w-[284px] rounded-2xl border bg-white p-3 shadow-sm">
                 <QRCodeSVG
                   value={`its://unlock?code=${selectedVehicle.vehicleCode}`}
-                  size={280}
+                  size={250}
+                  className="h-auto w-full"
                   level="M"
                   includeMargin
                 />
               </div>
-              <div className="w-full rounded-md bg-muted px-3 py-2 text-center font-mono text-xs">
+              <div className="w-full break-all rounded-md bg-muted px-3 py-2 text-center font-mono text-xs">
                 its://unlock?code={selectedVehicle.vehicleCode}
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                Dùng ứng dụng Mobile Android (Quét QR Mở khóa) để quét mã này và bắt đầu chuyến đi.
+                Mở mục Quét mã QR trong app để dùng mã này.
               </p>
             </div>
           </DialogContent>
