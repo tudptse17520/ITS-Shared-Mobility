@@ -11,7 +11,7 @@ import vn.edu.ut.its.constant.IssueType;
 
 /**
  * Entity đại diện cho bảng feedback trong SQL Server.
- * Ghi nhận sự cố (mất thẻ, sai biển số,...) gắn liền với lượt gửi xe cụ thể.
+ * Ghi nhận phản ánh hoặc sự cố phát sinh trong một chuyến đi.
  */
 @Entity
 @Table(name = "feedback")

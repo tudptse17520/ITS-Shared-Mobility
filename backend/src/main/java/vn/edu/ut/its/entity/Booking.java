@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 /**
  * Entity đại diện cho bảng booking trong SQL Server.
- * Đơn đặt chỗ trước cho xe vào bãi.
+ * Đơn đặt giữ xe hoặc vị trí trả xe tại trạm.
  */
 @Entity
 @Table(name = "booking")
@@ -27,11 +27,11 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "expected_time_in", nullable = false)
-    private LocalDateTime expectedTimeIn;
+    @Column(name = "planned_start_at", nullable = false)
+    private LocalDateTime plannedStartAt;
 
-    @Column(name = "expected_time_out", nullable = false)
-    private LocalDateTime expectedTimeOut;
+    @Column(name = "planned_end_at", nullable = false)
+    private LocalDateTime plannedEndAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

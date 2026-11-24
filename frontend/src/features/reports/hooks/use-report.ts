@@ -4,7 +4,7 @@ import {
   getRevenueReport,
   getOccupancyRateReport,
   getPeakHourReport,
-  getVehicleEntryExitReport,
+  getRideFlowReport,
 } from "@/services/report.service";
 import type { ReportFilter } from "../types/report.type";
 
@@ -49,7 +49,7 @@ export const usePeakHourReport = (filter: ReportFilter = {}) => {
 export const useVehicleFlowReport = (filter: ReportFilter = {}, refetchInterval?: number) => {
   return useQuery({
     queryKey: REPORT_KEYS.vehicleFlow(filter),
-    queryFn: () => getVehicleEntryExitReport(filter),
+    queryFn: () => getRideFlowReport(filter),
     refetchInterval,
   });
 };

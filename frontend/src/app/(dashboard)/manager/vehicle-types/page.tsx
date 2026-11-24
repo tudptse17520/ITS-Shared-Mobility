@@ -39,7 +39,7 @@ export default function VehicleTypesPage() {
     <PageContainer>
       <PageHeader
         title="Quản lý Loại Phương Tiện"
-        description="Xem danh sách, thêm mới và thiết lập các loại phương tiện được phép gửi trong bãi."
+        description="Xem danh sách, thêm mới và thiết lập các loại phương tiện cho thuê."
         actions={
           <Button onClick={handleOpenCreate}>
             <Plus className="mr-2 h-4 w-4" />

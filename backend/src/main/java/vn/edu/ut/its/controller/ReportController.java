@@ -29,13 +29,13 @@ public class ReportController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Xem báo cáo lượt xe vào/ra")
+    @Operation(summary = "Xem số chuyến bắt đầu và kết thúc")
     @GetMapping("/vehicle-flow")
-    public ResponseEntity<VehicleEntryExitReportDTO> getVehicleFlowReport(
+    public ResponseEntity<RideFlowReportDTO> getVehicleFlowReport(
             @RequestParam(name = "startDate", required = false) String startDate,
             @RequestParam(name = "endDate", required = false) String endDate,
             @RequestParam(name = "vehicleTypeId", required = false) Long vehicleTypeId) {
-        VehicleEntryExitReportDTO response = reportService.getVehicleEntryExitReport(startDate, endDate, vehicleTypeId);
+        RideFlowReportDTO response = reportService.getRideFlowReport(startDate, endDate, vehicleTypeId);
         return ResponseEntity.ok(response);
     }
 

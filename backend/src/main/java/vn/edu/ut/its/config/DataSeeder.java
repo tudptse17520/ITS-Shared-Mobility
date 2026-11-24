@@ -3,6 +3,7 @@ package vn.edu.ut.its.config;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.List;
  * các chuyến thuê xe, thanh toán VNPay và nhật ký Telemetry.
  */
 @Component
+@ConditionalOnProperty(prefix = "its.demo", name = "seed", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {
@@ -264,11 +266,11 @@ public class DataSeeder implements CommandLineRunner {
 
         // 1. Chuyến đi đang diễn ra (IN_PROGRESS) để minh họa trên Live Fleet Map
         RideSession activeRide = RideSession.builder()
-                .ticketCode("RIDE-ITS-EB-010-101")
+                .sessionCode("RIDE-ITS-EB-010-101")
                 .plate(inUseBike.getPlate())
                 .user(hoangNam)
                 .vehicle(inUseBike)
-                .timeIn(LocalDateTime.now().minusMinutes(18))
+                .startedAt(LocalDateTime.now().minusMinutes(18))
                 .startLatitude(stations.get(2).getLatitude())
                 .startLongitude(stations.get(2).getLongitude())
                 .distanceKm(1.45)
@@ -290,12 +292,12 @@ public class DataSeeder implements CommandLineRunner {
 
         // 2. Các chuyến đi đã hoàn tất và thanh toán qua VNPay
         RideSession completed1 = RideSession.builder()
-                .ticketCode("RIDE-ITS-ES-002-088")
+                .sessionCode("RIDE-ITS-ES-002-088")
                 .plate(completedBike.getPlate())
                 .user(thanhTu)
                 .vehicle(completedBike)
-                .timeIn(LocalDateTime.now().minusHours(4))
-                .timeOut(LocalDateTime.now().minusHours(3).minusMinutes(15))
+                .startedAt(LocalDateTime.now().minusHours(4))
+                .endedAt(LocalDateTime.now().minusHours(3).minusMinutes(15))
                 .startLatitude(stations.get(3).getLatitude())
                 .startLongitude(stations.get(3).getLongitude())
                 .endLatitude(stations.get(0).getLatitude())
@@ -318,12 +320,12 @@ public class DataSeeder implements CommandLineRunner {
                 .build());
 
         RideSession completed2 = RideSession.builder()
-                .ticketCode("RIDE-ITS-ES-006-089")
+                .sessionCode("RIDE-ITS-ES-006-089")
                 .plate(completedBike2.getPlate())
                 .user(khach1)
                 .vehicle(completedBike2)
-                .timeIn(LocalDateTime.now().minusHours(2))
-                .timeOut(LocalDateTime.now().minusHours(1).minusMinutes(20))
+                .startedAt(LocalDateTime.now().minusHours(2))
+                .endedAt(LocalDateTime.now().minusHours(1).minusMinutes(20))
                 .startLatitude(stations.get(0).getLatitude())
                 .startLongitude(stations.get(0).getLongitude())
                 .endLatitude(stations.get(1).getLatitude())
@@ -348,7 +350,7 @@ public class DataSeeder implements CommandLineRunner {
         // 3. Phản hồi sự cố phương tiện từ khách hàng
         feedbackRepository.save(Feedback.builder()
                 .rideSession(completed1)
-                .issueType(IssueType.WRONG_PLACE)
+                .issueType(IssueType.WRONG_RETURN_LOCATION)
                 .description("Xe ITS-ES-002 trả xe hơi lệch vạch trạm UTH Cơ sở 1, đã được kỹ thuật viên điều chỉnh.")
                 .status(FeedbackStatus.RESOLVED)
                 .build());
@@ -370,16 +372,16 @@ public class DataSeeder implements CommandLineRunner {
                             .user(khach1)
                             .vehicle(fleet.get(0))
                             .stationDock(dock1)
-                            .expectedTimeIn(LocalDateTime.now().plusHours(1))
-                            .expectedTimeOut(LocalDateTime.now().plusHours(3))
+                            .plannedStartAt(LocalDateTime.now().plusHours(1))
+                            .plannedEndAt(LocalDateTime.now().plusHours(3))
                             .status(BookingStatus.CONFIRMED)
                             .build(),
                     Booking.builder()
                             .user(thanhTu)
                             .vehicle(fleet.get(4))
                             .stationDock(dock2)
-                            .expectedTimeIn(LocalDateTime.now().plusHours(2))
-                            .expectedTimeOut(LocalDateTime.now().plusHours(5))
+                            .plannedStartAt(LocalDateTime.now().plusHours(2))
+                            .plannedEndAt(LocalDateTime.now().plusHours(5))
                             .status(BookingStatus.PENDING)
                             .build()
             ));

@@ -12,7 +12,7 @@ public interface RideSessionService {
      *
      * @param plate    the license plate to filter by (optional, exact match)
      * @param status   the status string to filter by (optional, validated against RideSessionStatus enum)
-     * @param fromDate the minimum time_in as a string, cast to LocalDateTime (optional)
+     * @param fromDate the minimum started_at as a string, cast to LocalDateTime (optional)
      * @return a response containing total_items and data array
      */
     RideSessionListResponseDTO getRideSessions(String plate, String status, String fromDate);

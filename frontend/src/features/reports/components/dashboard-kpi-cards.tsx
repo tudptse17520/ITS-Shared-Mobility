@@ -12,17 +12,17 @@ export const statCards = [
     bg: "bg-emerald-500/10",
   },
   {
-    key: "entries",
-    label: "Lượt xe vào",
-    description: "Lượt xe đã check-in",
+    key: "ridesStarted",
+    label: "Chuyến bắt đầu",
+    description: "Số chuyến bắt đầu trong kỳ",
     icon: CarFront,
     color: "text-blue-600 dark:text-blue-400",
     bg: "bg-blue-500/10",
   },
   {
-    key: "exits",
-    label: "Lượt xe ra",
-    description: "Lượt xe đã check-out",
+    key: "ridesEnded",
+    label: "Chuyến kết thúc",
+    description: "Số chuyến kết thúc trong kỳ",
     icon: Car,
     color: "text-indigo-600 dark:text-indigo-400",
     bg: "bg-indigo-500/10",
@@ -30,15 +30,15 @@ export const statCards = [
   {
     key: "occupancy",
     label: "Tỷ lệ lấp đầy",
-    description: "Hiệu suất sử dụng bãi",
+    description: "Tỷ lệ dock đang có xe",
     icon: Percent,
     color: "text-amber-600 dark:text-amber-400",
     bg: "bg-amber-500/10",
   },
   {
     key: "current",
-    label: "Xe đang trong bãi",
-    description: "Số lượng xe hiện tại",
+    label: "Chuyến đang diễn ra",
+    description: "Số chuyến đang diễn ra hiện tại",
     icon: MapPin,
     color: "text-rose-600 dark:text-rose-400",
     bg: "bg-rose-500/10",
@@ -71,14 +71,14 @@ export function StatValue({ statKey, data }: { statKey: string; data: Record<str
 
   let textValue = "--";
   switch (statKey) {
-    case "entries":
-      textValue = String((data?.totalEntries as number) ?? 0);
+    case "ridesStarted":
+      textValue = String((data?.totalRidesStarted as number) ?? 0);
       break;
-    case "exits":
-      textValue = String((data?.totalExits as number) ?? 0);
+    case "ridesEnded":
+      textValue = String((data?.totalRidesEnded as number) ?? 0);
       break;
     case "current":
-      textValue = String((data?.currentVehicles as number) ?? 0);
+      textValue = String((data?.activeRides as number) ?? 0);
       break;
   }
 

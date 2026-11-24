@@ -104,7 +104,7 @@ export function ConfigFormDialog({
             <div className="p-6 pb-4 border-b border-white/5">
               <FormHeader 
                 title="Cập nhật cấu hình hệ thống" 
-                description="Thay đổi giá trị tham số cấu hình. Hãy cẩn trọng vì điều này ảnh hưởng trực tiếp đến logic hoạt động của bãi đỗ xe."
+                description="Thay đổi giá trị tham số cấu hình. Hãy cẩn trọng vì điều này ảnh hưởng trực tiếp đến cách hệ thống thuê xe hoạt động."
               />
             </div>
 

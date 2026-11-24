@@ -43,7 +43,7 @@ public class FeedbackController {
         return ResponseEntity.ok(feedbackService.getFeedbackById(id));
     }
 
-    @Operation(summary = "Tạo mới sự cố", description = "Ghi nhận sự cố mới gắn liền với lượt gửi xe")
+    @Operation(summary = "Tạo mới sự cố", description = "Ghi nhận sự cố mới gắn liền với chuyến đi")
     @PostMapping
     public ResponseEntity<FeedbackResponse> createFeedback(@Valid @RequestBody FeedbackRequest request) {
         return ResponseEntity.ok(feedbackService.createFeedback(request));

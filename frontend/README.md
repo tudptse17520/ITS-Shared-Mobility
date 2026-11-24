@@ -17,49 +17,23 @@ frontend/
 │   ├── stores/          # Global client state (Zustand stores)
 │   ├── types/           # TypeScript types/interfaces matching Backend Entities
 │   └── utils/           # Global helper functions (formatters)
-└── middleware.ts        # Global Route Guard (placed at /src root)
+└── middleware.ts        # Route middleware (demo mode)
 ```
 
-## Planned Routing Structure 
+## Web routes
 
-```text
-app/
-├── (auth)
-│   └── login
-│
-├── (dashboard)
-│   ├── forbidden (403 Error Page)
-│   │
-│   ├── admin
-│   │   ├── dashboard
-│   │   ├── users
-│   │   └── settings
-│   │
-│   ├── manager
-│   │   ├── dashboard
-│   │   ├── stations
-│   │   ├── station-zones
-│   │   ├── station-docks
-│   │   ├── pricing
-│   │   ├── feedbacks
-│   │   └── reports
-│   │
-│   └── staff
-│       ├── dashboard
-│       ├── check-in
-│       ├── check-out
-│       ├── sessions
-│       └── payments
-│
-└── (driver)
-    ├── browse
-    ├── reservations
-    ├── vehicles
-    └── profile
-```
+- `/` — project landing page.
+- `/login` and `/register` — account access.
+- `/admin/dashboard` — fleet and ride summary.
+- `/admin/fleet-map` — fleet map and telemetry.
+- `/manager/stations` — stations and dock availability.
+- `/manager/bookings` — vehicle reservations.
+- `/manager/feedbacks` — ride feedback and incidents.
+- `/manager/reports` — ride flow, revenue and current dock utilization.
+- `/profile` — rider profile and ride history.
 
 ## Prerequisites
-- Node.js (v18 or newer recommended)
+- Node.js 20.9 or newer
 - npm, yarn, or pnpm
 
 ## Setup & Run
@@ -73,7 +47,7 @@ app/
    # or yarn install / pnpm install
    ```
 3. Set up environment variables:
-   Copy `.env.example` to `.env.local` and update the values.
+   Set `NEXT_PUBLIC_API_URL` in `.env.local` if the backend uses a different URL from `http://localhost:8080/api/v1`. Set `NEXT_PUBLIC_VIETMAP_API_KEY` to display the VietMap basemap.
 4. Start the development server:
    ```bash
    npm run dev

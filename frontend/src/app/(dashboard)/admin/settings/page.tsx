@@ -30,7 +30,7 @@ export default function SettingsPage() {
     <PageContainer>
       <PageHeader
         title="Cấu hình hệ thống"
-        description="Quản lý và cập nhật các tham số cấu hình của hệ thống bãi đỗ xe."
+        description="Quản lý và cập nhật các tham số cấu hình của hệ thống thuê xe."
       />
 
       <div className="space-y-4 mt-6">

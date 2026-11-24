@@ -71,8 +71,7 @@ public class IotSimulationServiceImpl implements IotSimulationService {
         vehicleRepository.save(vehicle);
 
         RideSession activeSession = rideSessionRepository
-                .findFirstByVehicle_IdAndStatusOrderByTimeInDesc(vehicle.getId(), RideSessionStatus.IN_PROGRESS)
-                .filter(s -> s.getTimeOut() == null)
+                .findFirstByVehicle_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(vehicle.getId(), RideSessionStatus.IN_PROGRESS)
                 .orElse(null);
 
         if (activeSession != null && stepKm > 0.001 && stepKm < 50.0) {
@@ -102,7 +101,7 @@ public class IotSimulationServiceImpl implements IotSimulationService {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi ID: " + sessionId));
 
-        if (session.getTimeOut() != null) {
+        if (session.getEndedAt() != null) {
             throw new BusinessRuleViolationException("Chuyến đi đã kết thúc, không thể mô phỏng di chuyển tiếp.");
         }
 

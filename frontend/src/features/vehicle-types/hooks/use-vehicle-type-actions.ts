@@ -72,7 +72,7 @@ export function useVehicleTypeActions() {
 
   const handleOpenDeactivate = (vehicleType: VehicleType) => {
     if ((vehicleType.activeSessionsCount || 0) > 0) {
-      toast.error("Không thể ngừng áp dụng loại xe này vì đang có xe gửi trong bãi!");
+      toast.error("Không thể ngừng áp dụng loại xe này vì có xe đang được thuê!");
       return;
     }
     setVehicleTypeToDeactivate(vehicleType);
@@ -98,7 +98,7 @@ export function useVehicleTypeActions() {
 
   const handleOpenDelete = (vehicleType: VehicleType) => {
     if ((vehicleType.activeSessionsCount || 0) > 0) {
-      toast.error("Không thể xóa loại xe này vì đang có xe gửi trong bãi!");
+      toast.error("Không thể xóa loại xe này vì có xe đang được thuê!");
       return;
     }
     setVehicleTypeToDelete(vehicleType);

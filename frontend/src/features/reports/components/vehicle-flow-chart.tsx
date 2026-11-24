@@ -20,7 +20,7 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Lưu lượng xe vào/ra</CardTitle>
+          <CardTitle>Lưu lượng chuyến đi</CardTitle>
           <CardDescription>Đang tải dữ liệu...</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px] flex items-center justify-center">
@@ -52,7 +52,7 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
     );
   }
 
-  // Assuming details has { name/date, entries, exits }
+  // Assuming details has { date, ridesStarted, ridesEnded }
   const chartData = data.details?.length > 0 ? data.details.map((d: ReportDetail) => {
     let name = d.name || d.date;
     if (name && name.includes("-")) {
@@ -64,20 +64,20 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
     }
     return {
       name: name || "Chưa xác định",
-      entries: d.entries || d.vao || 0,
-      exits: d.exits || d.ra || 0,
+      ridesStarted: d.ridesStarted ?? 0,
+      ridesEnded: d.ridesEnded ?? 0,
     };
   }) : [
-    { name: "Tổng quan", entries: data.totalEntries, exits: data.totalExits }
+    { name: "Tổng quan", ridesStarted: data.totalRidesStarted, ridesEnded: data.totalRidesEnded }
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Lưu lượng xe vào/ra</CardTitle>
+        <CardTitle>Lưu lượng chuyến đi</CardTitle>
         <CardDescription>
-          Vào: <span className="font-bold text-green-600">{data.totalEntries}</span> | 
-          Ra: <span className="font-bold text-blue-600">{data.totalExits}</span>
+          Bắt đầu: <span className="font-bold text-green-600">{data.totalRidesStarted}</span> |
+          Kết thúc: <span className="font-bold text-blue-600">{data.totalRidesEnded}</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,11 +85,11 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="colorEntries" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="colorRidesStarted" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
                 </linearGradient>
-                <linearGradient id="colorExits" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="colorRidesEnded" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                 </linearGradient>
@@ -99,8 +99,8 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
               <YAxis fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }} />
               <Legend verticalAlign="top" height={36}/>
-              <Area type="monotone" dataKey="entries" name="Lượt vào" stroke="#16a34a" fillOpacity={0.5} fill="url(#colorEntries)" />
-              <Area type="monotone" dataKey="exits" name="Lượt ra" stroke="#ef4444" fillOpacity={0.5} fill="url(#colorExits)" />
+              <Area type="monotone" dataKey="ridesStarted" name="Chuyến bắt đầu" stroke="#16a34a" fillOpacity={0.5} fill="url(#colorRidesStarted)" />
+              <Area type="monotone" dataKey="ridesEnded" name="Chuyến kết thúc" stroke="#ef4444" fillOpacity={0.5} fill="url(#colorRidesEnded)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

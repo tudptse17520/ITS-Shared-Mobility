@@ -20,9 +20,9 @@ public class BookingRequestDTO {
     @NotNull(message = "Mã vị trí đỗ không được để trống")
     private Long stationDockId;
 
-    @NotBlank(message = "Thời gian dự kiến vào không được để trống")
-    private String expectedTimeIn;
+    @NotBlank(message = "Thời điểm bắt đầu dự kiến không được để trống")
+    private String plannedStartAt;
 
-    @NotBlank(message = "Thời gian dự kiến ra không được để trống")
-    private String expectedTimeOut;
+    @NotBlank(message = "Thời điểm kết thúc dự kiến không được để trống")
+    private String plannedEndAt;
 }

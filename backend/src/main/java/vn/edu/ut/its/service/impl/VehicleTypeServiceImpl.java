@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  * Implementation of VehicleTypeService.
  * Handles all CRUD operations and business rule validations (E1, E2, E3).
- * E3 check: chỉ kiểm tra có xe nào thuộc loại phương tiện đang đỗ trong bãi (RideSession IN_PROGRESS).
+ * E3 check: chỉ kiểm tra có xe nào thuộc loại phương tiện đang được thuê (RideSession IN_PROGRESS).
  */
 @Service
 @RequiredArgsConstructor
@@ -99,12 +99,12 @@ public class VehicleTypeServiceImpl implements VehicleTypeService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy loại phương tiện với ID: " + id));
 
-        // E3: Kiểm tra có xe nào thuộc loại phương tiện này đang đỗ trong bãi không
+        // E3: Kiểm tra có xe nào thuộc loại phương tiện này đang được thuê không
         boolean hasActiveRide = rideSessionRepository
-                .existsByVehicle_VehicleType_IdAndStatus(id, RideSessionStatus.IN_PROGRESS);
+                .existsByVehicle_VehicleType_IdAndStatusAndEndedAtIsNull(id, RideSessionStatus.IN_PROGRESS);
         if (hasActiveRide) {
             throw new BusinessRuleViolationException(
-                    "Không thể ngừng áp dụng loại phương tiện này vì đang có xe thuộc danh mục này đang đỗ trong bãi.");
+                    "Không thể ngừng áp dụng loại phương tiện này vì đang có xe thuộc danh mục này đang được thuê.");
         }
 
         // All checks passed — deactivate

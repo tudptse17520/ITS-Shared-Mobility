@@ -82,10 +82,10 @@ export function BookingDetailDialog({ booking, isOpen, onClose }: BookingDetailD
                 <div className="text-sm font-medium text-muted-foreground">Thời gian dự kiến</div>
                 <div className="col-span-2 flex flex-col gap-1">
                   <p className="text-sm text-emerald-600 dark:text-emerald-500">
-                    Vào: <span className="font-medium">{formatStr(booking.expectedTimeIn)}</span>
+                    Vào: <span className="font-medium">{formatStr(booking.plannedStartAt)}</span>
                   </p>
                   <p className="text-sm text-rose-600 dark:text-rose-500">
-                    Ra: <span className="font-medium">{formatStr(booking.expectedTimeOut)}</span>
+                    Ra: <span className="font-medium">{formatStr(booking.plannedEndAt)}</span>
                   </p>
                 </div>
               </div>
