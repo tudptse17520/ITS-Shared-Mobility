@@ -7,7 +7,7 @@ import { UserResponse } from "@/types/user.type";
 import { UserRoleBadge } from "./user-role-badge";
 import { UserStatusBadge } from "./user-status-badge";
 import { Button } from "@/components/ui/button";
-import { Edit2, Lock, Unlock } from "lucide-react";
+import { PencilSimpleLineIcon as Edit2, LockKeyIcon as Lock, LockKeyOpenIcon as Unlock } from "@phosphor-icons/react/ssr";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useUpdateUserStatus } from "../hooks/use-users";
 

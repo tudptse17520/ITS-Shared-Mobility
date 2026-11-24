@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Activity } from "lucide-react";
+import { PulseIcon as Activity } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import type { ReportFilter, ReportDetail } from "../types/report.type";
 

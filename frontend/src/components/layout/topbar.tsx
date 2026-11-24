@@ -1,37 +1,20 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { 
-  LogOut, 
-  MapPin,
-  Menu,
-  Moon,
-  Sun
-} from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { CaretDownIcon as ChevronDown, SignOutIcon as LogOut, ListIcon as Menu, MoonIcon as Moon, GearSixIcon as Settings, SunIcon as Sun, UserCircleIcon as UserRound } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuGroup,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useThemeStore } from "@/stores/theme.store";
-import { ADMIN_NAV } from "@/config/navigation";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
+import { ADMIN_NAV } from "@/config/navigation";
 import { removeCookie } from "@/utils/storage";
 import { Skeleton } from "@/components/ui/skeleton";
-
-import { useState } from "react";
+import { AdminBrand } from "./brand";
+import { AdminNavigation } from "./sidebar";
 import { ProfileDialog } from "./profile-dialog";
 import { SettingsDialog } from "./settings-dialog";
 
@@ -41,157 +24,79 @@ export function Topbar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state.isHydrated);
-  const { setTheme, theme } = useThemeStore();
+  const { setTheme } = useThemeStore();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const current = ADMIN_NAV.flatMap(({ items }) => items).find(({ href }) => pathname === href || pathname.startsWith(href + "/"));
+  const name = user?.fullName || user?.username || "Tài khoản";
+  const initials = name.split(" ").slice(-2).map((part) => part.charAt(0)).join("").toUpperCase();
 
-  const handleLogout = () => {
+  function logout() {
     removeCookie("access_token");
     clearUser();
     router.replace("/login");
-  };
-
-  const navGroups = ADMIN_NAV;
+  }
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
-        <div className="flex items-center gap-4 md:hidden">
-          <Sheet>
-            <SheetTrigger render={
-              <Button variant="ghost" size="icon" className="md:hidden" />
-            }>
-              <Menu className="h-6 w-6" />
-              <span className="sr-only">Toggle menu</span>
+      <header className="z-20 flex h-15 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 md:px-5 xl:px-7">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger render={<Button variant="outline" size="icon" className="size-9 md:hidden" aria-label="Mở điều hướng" />}>
+              <Menu />
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <SheetTitle className="sr-only">Menu Điều Hướng</SheetTitle>
-              <div className="flex h-16 items-center border-b px-6">
-                <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <MapPin className="h-5 w-5" />
-                  </div>
-                  <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
-                    ITS Admin
-                  </span>
-                </Link>
-              </div>
-              
-              <ScrollArea className="flex-1 py-4">
-                <nav className="px-4">
-                  {navGroups.map((group, index) => (
-                    <div key={index} className="mb-4">
-                      <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                        {group.label}
-                      </h4>
-                      <div className="grid gap-1">
-                        {group.items.map((item, itemIndex) => {
-                          const Icon = item.icon;
-                          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                          return (
-                            <Link key={itemIndex} href={item.href}>
-                              <span
-                                className={cn(
-                                  "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                                  isActive ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-sidebar-foreground"
-                                )}
-                              >
-                                <Icon className={cn("mr-3 h-5 w-5", isActive ? "text-primary" : "text-sidebar-foreground/70")} />
-                                {item.title}
-                              </span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </nav>
-              </ScrollArea>
-              
-              <div className="border-t p-4">
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="mr-3 h-5 w-5" />
-                  Đăng xuất
-                </Button>
-              </div>
+            <SheetContent side="left" className="w-[min(19rem,88vw)] gap-2 rounded-r-[24px] p-3">
+              <SheetTitle className="sr-only">Điều hướng quản trị</SheetTitle>
+              <div className="px-2 pt-2 pb-3"><AdminBrand /></div>
+              <ScrollArea className="min-h-0 flex-1"><AdminNavigation onNavigate={() => setMenuOpen(false)} /></ScrollArea>
+              <Button variant="ghost" className="h-10 justify-start text-muted-foreground" onClick={logout}><LogOut /> Đăng xuất</Button>
             </SheetContent>
           </Sheet>
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <span className="hidden text-muted-foreground sm:inline">Quản trị</span>
+            <span className="hidden text-muted-foreground/60 sm:inline" aria-hidden="true">/</span>
+            <span className="truncate font-semibold">{current?.title || "Tổng quan"}</span>
+          </div>
         </div>
 
-        <div className="flex w-full items-center justify-end gap-4">
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="icon" className="relative size-9" aria-label="Đổi giao diện sáng tối" onClick={() => setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark")}>
+            <Sun className="transition-[opacity,transform] duration-200 dark:-rotate-45 dark:opacity-0" />
+            <Moon className="absolute rotate-45 opacity-0 transition-[opacity,transform] duration-200 dark:rotate-0 dark:opacity-100" />
           </Button>
 
-          {/* User Info */}
           <DropdownMenu>
-            <DropdownMenuTrigger render={
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full md:h-auto md:w-auto md:px-2 md:py-1.5 md:flex md:gap-2" />
-            }>
-                {isHydrated || user ? (
-                  <>
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{(user?.fullName || "User").substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="hidden flex-col items-start md:flex">
-                      <span className="text-sm font-medium">{user?.fullName || "Người dùng"}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {user?.role === "ADMIN" ? "Quản trị viên" : "Khách thuê"}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <div className="hidden flex-col gap-1 md:flex">
-                      <Skeleton className="h-3.5 w-24" />
-                      <Skeleton className="h-3 w-16" />
-                    </div>
-                  </div>
-                )}
+            <DropdownMenuTrigger render={<Button variant="ghost" aria-label={"Tài khoản " + name} className="h-10 gap-2 rounded-xl px-1.5 sm:px-2.5" />}>
+              {isHydrated || user ? (
+                <>
+                  <Avatar className="size-8"><AvatarFallback className="bg-accent font-semibold text-accent-foreground">{initials}</AvatarFallback></Avatar>
+                  <span className="hidden max-w-44 truncate text-sm sm:inline">{name}</span>
+                  <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-8 rounded-full" />
+                  <Skeleton className="hidden h-3.5 w-24 sm:block" />
+                </div>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.fullName || "Người dùng"}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      @{user?.username || "username"}
-                    </p>
-                  </div>
+                  <span className="block font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{user?.role === "ADMIN" ? "Quản trị viên" : "Khách thuê"}</span>
                 </DropdownMenuLabel>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsProfileOpen(true)} className="cursor-pointer">
-                Hồ sơ cá nhân
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
-                Cài đặt tài khoản
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsProfileOpen(true)}><UserRound /> Hồ sơ cá nhân</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}><Settings /> Cài đặt tài khoản</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Đăng xuất</span>
-              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={logout}><LogOut /> Đăng xuất</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
-
       <ProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
       <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>

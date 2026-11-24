@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import { MagnifyingGlassIcon as Search, XIcon as X } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps {

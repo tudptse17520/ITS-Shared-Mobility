@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { StationStatus } from '@/constants/station-status';
 import { stationCreateSchema, stationUpdateSchema, type StationCreateForm, type StationUpdateForm } from '../schemas/station-form.schema';
 import type { StationResponse } from '@/types/station.type';
-import { X } from 'lucide-react';
+import { XIcon as X } from "@phosphor-icons/react/ssr";
 import { useCreateStation, useUpdateStation } from '../hooks/use-stations';
 import { Portal } from '@/components/common/portal';
 

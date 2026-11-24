@@ -7,28 +7,39 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -42,20 +53,38 @@ import vn.edu.ut.its.mobility.BuildConfig
 import vn.edu.ut.its.mobility.model.FleetVehicleDto
 import vn.edu.ut.its.mobility.model.RideSessionDto
 import vn.edu.ut.its.mobility.model.StationDto
+import vn.edu.ut.its.mobility.ui.BrandTile
+import vn.edu.ut.its.mobility.ui.ItsButton
+import vn.edu.ut.its.mobility.ui.ItsNotice
+import vn.edu.ut.its.mobility.ui.ItsPanel
 import vn.edu.ut.its.mobility.ui.MainViewModel
 import java.net.URL
 import java.text.NumberFormat
 import java.util.Locale
 
+private enum class FleetSheet { NONE, LIST, VEHICLE, QR, HISTORY }
+
+private enum class VehicleFilter(val title: String) {
+    ALL("Tất cả xe"), AVAILABLE("Xe sẵn sàng"), BIKE("Xe đạp"), SCOOTER("Xe máy điện");
+
+    fun includes(vehicle: FleetVehicleDto): Boolean = when (this) {
+        ALL -> true
+        AVAILABLE -> vehicle.fleetStatus == "AVAILABLE"
+        BIKE -> vehicle.vehicleTypeName?.contains("Đạp", ignoreCase = true) == true
+        SCOOTER -> vehicle.vehicleTypeName?.contains("Máy", ignoreCase = true) == true
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeMapScreen(viewModel: MainViewModel) {
+    var sheet by rememberSaveable { mutableStateOf(FleetSheet.NONE) }
+    var filter by rememberSaveable { mutableStateOf(VehicleFilter.ALL) }
+    var nativeMap by rememberSaveable { mutableStateOf(false) }
+    var showOptions by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    var showQrDialog by remember { mutableStateOf(false) }
-    var showHistoryDialog by remember { mutableStateOf(false) }
     var feedbackSessionTarget by remember { mutableStateOf<RideSessionDto?>(null) }
-    var useVietMapWebMode by remember { mutableStateOf(true) }
-    var filterMode by remember { mutableStateOf("ALL") }
     var remainingReserveSeconds by remember { mutableStateOf(0L) }
 
     val tryReadLastLocation = remember(context) {
@@ -116,397 +145,184 @@ fun HomeMapScreen(viewModel: MainViewModel) {
             }
         }
     }
+    val colors = MaterialTheme.colorScheme
+    val vehicles = remember(viewModel.vehicles, filter) { viewModel.vehicles.filter(filter::includes) }
+    val selected = viewModel.selectedVehicle
+    val featured = vehicles.firstOrNull { it.id == selected?.id } ?: vehicles.firstOrNull()
+    val currency = remember { NumberFormat.getNumberInstance(Locale("vi", "VN")) }
+    val notice = viewModel.errorMessage ?: viewModel.statusMessage?.takeUnless { it == "Đăng nhập thành công." }
 
-    val filteredVehicles = remember(viewModel.vehicles, filterMode) {
-        when (filterMode) {
-            "AVAILABLE" -> viewModel.vehicles.filter { it.fleetStatus == "AVAILABLE" }
-            "EBIKE" -> viewModel.vehicles.filter { it.vehicleTypeName?.contains("Đạp", ignoreCase = true) == true }
-            "ESCOOTER" -> viewModel.vehicles.filter { it.vehicleTypeName?.contains("Máy", ignoreCase = true) == true }
-            else -> viewModel.vehicles
-        }
+    fun inspect(vehicle: FleetVehicleDto) {
+        viewModel.clearMessages()
+        viewModel.selectVehicle(vehicle)
+        sheet = FleetSheet.VEHICLE
     }
 
-    val vndFormat = remember { NumberFormat.getNumberInstance(Locale("vi", "VN")) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= 680.dp
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "ITS Shared Mobility",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Xin chào, ${viewModel.currentUser?.fullName ?: "Khách thuê"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showQrDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Quét QR Mở khóa"
-                        )
-                    }
-                    IconButton(onClick = {
-                        viewModel.loadRideHistory()
-                        showHistoryDialog = true
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = "Lịch sử chuyến đi"
-                        )
-                    }
-                    IconButton(onClick = { useVietMapWebMode = !useVietMapWebMode }) {
-                        Icon(
-                            imageVector = Icons.Default.Layers,
-                            contentDescription = "Chuyển lớp bản đồ VietMap"
-                        )
-                    }
-                    IconButton(onClick = { viewModel.refreshFleet() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
-                    }
-                    IconButton(onClick = { viewModel.logout() }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Đăng xuất")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Thanh bộ lọc nhanh
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val chips = listOf(
-                    "ALL" to "Tất cả (${viewModel.vehicles.size})",
-                    "AVAILABLE" to "Sẵn sàng",
-                    "EBIKE" to "Xe đạp / E-Bike",
-                    "ESCOOTER" to "Xe máy điện"
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background),
+                    navigationIcon = {
+                        BrandTile(Modifier.padding(start = 14.dp, end = 10.dp), size = 39.dp)
+                    },
+                    title = {
+                        Column {
+                            Text("ITS Mobility", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("TP. Hồ Chí Minh", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                        }
+                    },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { showOptions = true }) {
+                                Icon(Icons.Outlined.MoreHoriz, "Tùy chọn")
+                            }
+                            DropdownMenu(expanded = showOptions, onDismissRequest = { showOptions = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Đổi lớp bản đồ") },
+                                    leadingIcon = { Icon(Icons.Outlined.Layers, null) },
+                                    onClick = { showOptions = false; nativeMap = !nativeMap },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Làm mới") },
+                                    leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
+                                    onClick = { showOptions = false; viewModel.refreshFleet() },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Đăng xuất") },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Logout, null) },
+                                    onClick = { showOptions = false; viewModel.logout() },
+                                )
+                            }
+                        }
+                    },
                 )
-                items(chips) { (key, label) ->
-                    FilterChip(
-                        selected = filterMode == key,
-                        onClick = { filterMode = key },
-                        label = { Text(label) }
-                    )
-                }
-            }
-
-            // Bản đồ VietMap + Google Maps Compose
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+            },
+            bottomBar = {
+                MobilityActionBar(
+                    showList = !wide,
+                    onList = { sheet = FleetSheet.LIST },
+                    onScan = { sheet = FleetSheet.QR },
+                    onHistory = { viewModel.loadRideHistory(); sheet = FleetSheet.HISTORY },
+                )
+            },
+        ) { padding ->
+            Column(
+                Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
-                if (!useVietMapWebMode) {
-                    val uthCenter = LatLng(viewModel.userLat, viewModel.userLng)
-                    val cameraPositionState = rememberCameraPositionState {
-                        position = CameraPosition.fromLatLngZoom(uthCenter, 14f)
-                    }
-
-                    val vietMapTileProvider = remember {
-                        object : UrlTileProvider(256, 256) {
-                            override fun getTileUrl(x: Int, y: Int, zoom: Int): URL {
-                                val url = "https://maps.vietmap.vn/api/tm/$zoom/$x/$y@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}"
-                                return URL(url)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Xe gần bạn", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Box {
+                        OutlinedButton(
+                            onClick = { showFilters = true },
+                            shape = MaterialTheme.shapes.medium,
+                            contentPadding = PaddingValues(horizontal = 9.dp),
+                        ) {
+                            Icon(Icons.Outlined.Tune, null, Modifier.size(17.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(filter.title, style = MaterialTheme.typography.labelMedium)
+                        }
+                        DropdownMenu(expanded = showFilters, onDismissRequest = { showFilters = false }) {
+                            VehicleFilter.entries.forEach { choice ->
+                                DropdownMenuItem(
+                                    text = { Text(choice.title) },
+                                    onClick = { filter = choice; showFilters = false },
+                                    trailingIcon = if (choice == filter) {
+                                        { Icon(Icons.Outlined.Check, "Đang chọn") }
+                                    } else null,
+                                )
                             }
                         }
                     }
+                }
 
-                    GoogleMap(
-                        modifier = Modifier.fillMaxSize(),
-                        cameraPositionState = cameraPositionState,
-                        uiSettings = MapUiSettings(zoomControlsEnabled = true)
-                    ) {
-                        if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
-                            TileOverlay(tileProvider = vietMapTileProvider, zIndex = 0f)
-                        }
-
-                        // Marker các Trạm xe
-                        viewModel.stations.forEach { st ->
-                            Marker(
-                                state = MarkerState(position = LatLng(st.latitude, st.longitude)),
-                                title = st.stationName,
-                                snippet = "Sẵn sàng: ${st.availableVehicles}/${st.totalDocks} xe",
-                                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                            )
-                        }
-
-                        // Marker các Phương tiện
-                        filteredVehicles.forEach { v ->
-                            val hue = when (v.fleetStatus) {
-                                "AVAILABLE" -> BitmapDescriptorFactory.HUE_GREEN
-                                "IN_USE" -> BitmapDescriptorFactory.HUE_BLUE
-                                "RESERVED" -> BitmapDescriptorFactory.HUE_ORANGE
-                                else -> BitmapDescriptorFactory.HUE_RED
+                if (wide) {
+                    Row(Modifier.fillMaxWidth().weight(1f).padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                        FleetMap(viewModel, vehicles, featured, nativeMap, ::inspect, Modifier.weight(1f).fillMaxHeight())
+                        ItsPanel(Modifier.width(310.dp).fillMaxHeight()) {
+                            Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Text("Danh sách xe", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                VehicleList(vehicles, featured?.id, ::inspect, Modifier.weight(1f))
+                                if (sheet == FleetSheet.NONE) ItsNotice(notice, isError = viewModel.errorMessage != null)
                             }
-                            Marker(
-                                state = MarkerState(position = LatLng(v.latitude, v.longitude)),
-                                title = "${v.vehicleCode} · ${v.brand}",
-                                snippet = "Pin ${v.batteryLevel}% · ${v.fleetStatus}",
-                                icon = BitmapDescriptorFactory.defaultMarker(hue),
-                                onClick = {
-                                    viewModel.selectVehicle(v)
-                                    false
-                                }
-                            )
                         }
                     }
                 } else {
-                    VietMapLeafletWebView(
-                        stations = viewModel.stations,
-                        vehicles = filteredVehicles,
-                        selectedVehicleId = viewModel.selectedVehicle?.id,
-                        centerLat = viewModel.userLat,
-                        centerLng = viewModel.userLng
-                    )
-                }
-
-                // Danh sách xe ngang nổi phía trên thanh chi tiết
-                LazyRow(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredVehicles) { v ->
-                        val isSelected = viewModel.selectedVehicle?.id == v.id
+                    FleetMap(viewModel, vehicles, featured, nativeMap, ::inspect, Modifier.fillMaxWidth().weight(1f))
+                    if (featured != null) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFF0F766E) else Color.White,
-                            shadowElevation = 4.dp,
-                            modifier = Modifier.clickable { viewModel.selectVehicle(v) }
+                            onClick = { inspect(featured) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = colors.surface,
+                            border = BorderStroke(1.dp, colors.outlineVariant),
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = v.vehicleCode,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else Color(0xFF0F172A),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                                Text(
-                                    text = "${v.batteryLevel}%",
-                                    color = if (isSelected) Color(0xFFA7F3D0) else Color(0xFF16A34A),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                            VehicleRow(featured, highlighted = true)
                         }
+                    } else if (!viewModel.isLoading) {
+                        Text("Không có xe phù hợp.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                     }
-                }
-
-                if (viewModel.selectedVehicle == null) {
-                    ExtendedFloatingActionButton(
-                        onClick = { showQrDialog = true },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp),
-                        containerColor = Color(0xFF0F766E),
-                        contentColor = Color.White,
-                        icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                        text = { Text("Quét QR Mở khóa") }
-                    )
-                }
-            }
-
-            // Thông báo trạng thái / lỗi
-            viewModel.statusMessage?.let { msg ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFDCFCE7))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(msg, color = Color(0xFF166534), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            viewModel.errorMessage?.let { err ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFFEE2E2))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(err, color = Color(0xFF991B1B), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-
-            // Bottom Card chi tiết xe đang chọn
-            viewModel.selectedVehicle?.let { vehicle ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp)
-                            ) {
-                                Text(
-                                    text = "${vehicle.vehicleCode} · ${vehicle.brand}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${vehicle.vehicleTypeName ?: "Phương tiện"} · ${vehicle.plate}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                            AssistChip(
-                                onClick = {},
-                                label = {
-                                    val holdSuffix = if (
-                                        viewModel.reservedVehicleId == vehicle.id &&
-                                        remainingReserveSeconds > 0
-                                    ) {
-                                        val mins = remainingReserveSeconds / 60
-                                        val secs = remainingReserveSeconds % 60
-                                        " · %02d:%02d".format(mins, secs)
-                                    } else {
-                                        ""
-                                    }
-                                    Text("${vehicle.fleetStatus}$holdSuffix")
-                                }
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Pin: ${vehicle.batteryLevel}%",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (vehicle.batteryLevel >= 20) Color(0xFF16A34A) else Color(0xFFDC2626)
-                            )
-                            Text(
-                                text = "Cách ${vehicle.distanceMeters?.toInt() ?: 0} m",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Mở khóa ${vndFormat.format(vehicle.unlockFee)}đ + ${vndFormat.format(vehicle.hourlyRate)}đ/h",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF0F766E),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (vehicle.fleetStatus == "RESERVED") {
-                                OutlinedButton(
-                                    onClick = { viewModel.cancelSelectedReservation() },
-                                    enabled = !viewModel.isLoading,
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text("Hủy đặt giữ", maxLines = 1)
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = { viewModel.reserveSelectedVehicle() },
-                                    enabled = !viewModel.isLoading && vehicle.fleetStatus == "AVAILABLE",
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text("Đặt giữ (15p)", maxLines = 1)
-                                }
-                            }
-                            Button(
-                                onClick = { viewModel.startRideByCode(vehicle.vehicleCode) },
-                                enabled = !viewModel.isLoading && (vehicle.fleetStatus == "AVAILABLE" || vehicle.fleetStatus == "RESERVED"),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E)),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Mở khóa đi ngay", maxLines = 1)
-                            }
-                        }
-
-                        FilledTonalButton(
-                            onClick = { showQrDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color(0xFFCCFBF1),
-                                contentColor = Color(0xFF0F766E)
-                            )
-                        ) {
-                            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Quét QR Mở khóa",
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                        }
-                    }
+                    if (sheet == FleetSheet.NONE) ItsNotice(notice, isError = viewModel.errorMessage != null)
+                    Spacer(Modifier.height(1.dp))
                 }
             }
         }
     }
 
-    if (showQrDialog) {
-        QrScannerDialog(
-            availableCodes = viewModel.vehicles
-                .filter { it.fleetStatus == "AVAILABLE" || it.fleetStatus == "RESERVED" }
-                .map { it.vehicleCode },
-            initialCode = viewModel.selectedVehicle?.vehicleCode,
-            onDismiss = { showQrDialog = false },
-            onConfirmCode = { code ->
-                showQrDialog = false
-                viewModel.startRideByCode(code)
+    when (sheet) {
+        FleetSheet.LIST -> ModalBottomSheet(
+            onDismissRequest = { sheet = FleetSheet.NONE },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.surface,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(start = 17.dp, end = 17.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Danh sách xe", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                VehicleList(vehicles, featured?.id, ::inspect, Modifier.heightIn(max = 400.dp))
             }
+        }
+        FleetSheet.VEHICLE -> if (selected != null) {
+            val holdRemaining = if (viewModel.reservedVehicleId == selected.id) remainingReserveSeconds else 0L
+            VehicleDetailsSheet(
+                vehicle = selected,
+                currency = currency,
+                holdRemainingSeconds = holdRemaining,
+                loading = viewModel.isLoading,
+                notice = notice,
+                isError = viewModel.errorMessage != null,
+                onDismiss = { sheet = FleetSheet.NONE },
+                onReserve = {
+                    if (selected.fleetStatus == "RESERVED") viewModel.cancelSelectedReservation()
+                    else viewModel.reserveSelectedVehicle()
+                },
+                onUnlock = { viewModel.startRideByCode(selected.vehicleCode) },
+            )
+        }
+        FleetSheet.QR -> QrScannerDialog(
+            availableCodes = viewModel.vehicles.filter { it.fleetStatus == "AVAILABLE" || it.fleetStatus == "RESERVED" }.map { it.vehicleCode },
+            initialCode = featured?.vehicleCode,
+            onDismiss = { sheet = FleetSheet.NONE },
+            onConfirmCode = { code ->
+                sheet = FleetSheet.NONE
+                viewModel.startRideByCode(code)
+            },
         )
-    }
-
-    if (showHistoryDialog) {
-        RideHistoryDialog(
+        FleetSheet.HISTORY -> RideHistoryDialog(
             rides = viewModel.rideHistory,
             isLoading = viewModel.isLoadingHistory,
-            vndFormat = vndFormat,
-            onDismiss = { showHistoryDialog = false },
+            vndFormat = currency,
+            onDismiss = { sheet = FleetSheet.NONE },
             onReportIssue = { ride ->
-                showHistoryDialog = false
+                sheet = FleetSheet.NONE
                 feedbackSessionTarget = ride
-            }
+            },
         )
+        FleetSheet.NONE -> Unit
     }
 
     feedbackSessionTarget?.let { targetRide ->
@@ -527,6 +343,190 @@ fun HomeMapScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+private fun MobilityActionBar(showList: Boolean, onList: () -> Unit, onScan: () -> Unit, onHistory: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Surface(color = colors.surface, shadowElevation = 5.dp) {
+        Row(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (showList) MobilityShortcut("Danh sách xe", Icons.AutoMirrored.Outlined.FormatListBulleted, onList, Modifier.weight(1f))
+            ItsButton(onScan, Modifier.weight(1.1f).heightIn(min = 47.dp), contentPadding = PaddingValues(horizontal = 7.dp)) {
+                Icon(Icons.Outlined.QrCodeScanner, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Quét QR", style = MaterialTheme.typography.labelLarge)
+            }
+            MobilityShortcut("Chuyến đi", Icons.Outlined.History, onHistory, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun MobilityShortcut(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier) {
+    Surface(onClick = onClick, modifier = modifier, shape = MaterialTheme.shapes.medium, color = Color.Transparent) {
+        Column(Modifier.heightIn(min = 48.dp).padding(horizontal = 3.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(icon, null, Modifier.size(21.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun VehicleList(vehicles: List<FleetVehicleDto>, selectedId: Long?, onSelect: (FleetVehicleDto) -> Unit, modifier: Modifier = Modifier) {
+    if (vehicles.isEmpty()) {
+        Text("Không có xe phù hợp.", modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    LazyColumn(modifier.fillMaxWidth()) {
+        items(vehicles, key = { it.id }) { vehicle ->
+            Surface(onClick = { onSelect(vehicle) }, shape = MaterialTheme.shapes.medium,
+                color = if (vehicle.id == selectedId) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent) {
+                VehicleRow(vehicle, highlighted = false)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+    }
+}
+
+@Composable
+private fun VehicleRow(vehicle: FleetVehicleDto, highlighted: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = if (highlighted) 12.dp else 7.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(shape = MaterialTheme.shapes.medium, color = colors.secondaryContainer, contentColor = colors.onSecondaryContainer) {
+            val icon = if (vehicle.vehicleTypeName?.contains("Máy", ignoreCase = true) == true)
+                Icons.Outlined.ElectricScooter else Icons.AutoMirrored.Outlined.DirectionsBike
+            Icon(icon, null, Modifier.padding(9.dp).size(24.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(vehicle.brand, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val distance = vehicle.distanceMeters?.let { "Cách ${it.toInt()} m · " }.orEmpty()
+            Text(distance + "Pin ${vehicle.batteryLevel}% · " + fleetStatusLabel(vehicle.fleetStatus),
+                style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+        }
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, Modifier.size(21.dp), tint = colors.onSurfaceVariant)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VehicleDetailsSheet(
+    vehicle: FleetVehicleDto,
+    currency: NumberFormat,
+    holdRemainingSeconds: Long,
+    loading: Boolean,
+    notice: String?,
+    isError: Boolean,
+    onDismiss: () -> Unit,
+    onReserve: () -> Unit,
+    onUnlock: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val reserved = vehicle.fleetStatus == "RESERVED"
+    val rentable = vehicle.fleetStatus == "AVAILABLE" || reserved
+    val holdSuffix = if (reserved && holdRemainingSeconds > 0L) {
+        " (%02d:%02d)".format(holdRemainingSeconds / 60, holdRemainingSeconds % 60)
+    } else ""
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surface,
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 18.dp, end = 18.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(vehicle.brand, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(vehicle.vehicleCode + " · " + (vehicle.vehicleTypeName ?: "Xe cho thuê"),
+                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Surface(shape = MaterialTheme.shapes.large, color = colors.surfaceContainer) {
+                Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text(fleetStatusLabel(vehicle.fleetStatus) + holdSuffix + " · Pin ${vehicle.batteryLevel}%", style = MaterialTheme.typography.titleSmall)
+                    HorizontalDivider(color = colors.outlineVariant)
+                    Text("${currency.format(vehicle.hourlyRate)} đ/giờ", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Phí mở khóa ${currency.format(vehicle.unlockFee)} đ", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            ItsNotice(notice, isError)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ItsButton(onReserve, Modifier.weight(1f).heightIn(min = 48.dp), enabled = !loading && rentable, outlined = true) {
+                    Text(if (reserved) "Hủy giữ xe" else "Giữ xe")
+                }
+                ItsButton(onUnlock, Modifier.weight(1f).heightIn(min = 48.dp), enabled = !loading && rentable) {
+                    Text("Mở khóa")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FleetMap(
+    viewModel: MainViewModel,
+    vehicles: List<FleetVehicleDto>,
+    featured: FleetVehicleDto?,
+    nativeMap: Boolean,
+    onSelect: (FleetVehicleDto) -> Unit,
+    modifier: Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Box(modifier.clip(MaterialTheme.shapes.large).background(colors.surfaceContainer)) {
+        if (nativeMap) {
+            val center = LatLng(viewModel.userLat, viewModel.userLng)
+            val position = rememberCameraPositionState { this.position = CameraPosition.fromLatLngZoom(center, 14f) }
+            val tiles = remember {
+                object : UrlTileProvider(256, 256) {
+                    override fun getTileUrl(x: Int, y: Int, zoom: Int): URL =
+                        URL("https://maps.vietmap.vn/api/tm/$zoom/$x/$y@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}")
+                }
+            }
+            GoogleMap(Modifier.fillMaxSize(), cameraPositionState = position, uiSettings = MapUiSettings(zoomControlsEnabled = true)) {
+                if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+                    TileOverlay(tileProvider = tiles, zIndex = 0f)
+                }
+                viewModel.stations.forEach { station ->
+                    key(station.id) {
+                        Marker(
+                            state = MarkerState(LatLng(station.latitude, station.longitude)),
+                            title = station.stationName,
+                            snippet = "${station.availableVehicles} xe sẵn sàng",
+                            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
+                        )
+                    }
+                }
+                vehicles.forEach { vehicle ->
+                    key(vehicle.id) {
+                        Marker(
+                            state = MarkerState(LatLng(vehicle.latitude, vehicle.longitude)),
+                            title = vehicle.vehicleCode + " · " + vehicle.brand,
+                            snippet = fleetStatusLabel(vehicle.fleetStatus),
+                            onClick = { onSelect(vehicle); true },
+                        )
+                    }
+                }
+            }
+        } else {
+            VietMapLeafletWebView(
+                stations = viewModel.stations,
+                vehicles = vehicles,
+                selectedVehicleId = featured?.id,
+                centerLat = viewModel.userLat,
+                centerLng = viewModel.userLng,
+                onSelect = { id -> vehicles.firstOrNull { it.id == id }?.let(onSelect) },
+            )
+        }
+        if (viewModel.isLoading && viewModel.vehicles.isEmpty()) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun RideHistoryDialog(
     rides: List<RideSessionDto>,
     isLoading: Boolean,
@@ -534,79 +534,34 @@ private fun RideHistoryDialog(
     onDismiss: () -> Unit,
     onReportIssue: (RideSessionDto) -> Unit
 ) {
-    AlertDialog(
+    val colors = MaterialTheme.colorScheme
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text("Lịch sử chuyến đi", fontWeight = FontWeight.Bold)
-        },
-        text = {
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color(0xFF0F766E))
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surface,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Text("Lịch sử chuyến đi", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            when {
+                isLoading -> Box(Modifier.fillMaxWidth().height(90.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-            } else if (rides.isEmpty()) {
-                Text(
-                    text = "Bạn chưa có chuyến đi nào được ghi nhận.",
-                    color = Color(0xFF64748B)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(rides) { ride ->
+                rides.isEmpty() -> Text("Chưa có chuyến đi.", color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 15.dp))
+                else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(rides, key = { it.sessionCode }) { ride ->
                         val fee = ride.totalFee ?: ride.estimatedFee
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = ride.vehicleCode ?: ride.sessionCode,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (ride.paid) "Đã thanh toán" else "Chờ thanh toán",
-                                        color = if (ride.paid) Color(0xFF16A34A) else Color(0xFFD97706),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                        Surface(shape = MaterialTheme.shapes.large, color = colors.surfaceVariant) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(ride.vehicleCode ?: ride.sessionCode, Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                                    Text(if (ride.paid) "Đã thanh toán" else "Chờ thanh toán", style = MaterialTheme.typography.labelMedium)
                                 }
-                                Text(
-                                    text = "Mã: ${ride.sessionCode}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF64748B)
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "${ride.distanceKm} km · ${ride.durationMinutes} phút",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Text(
-                                        text = "${vndFormat.format(fee)} đ",
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F766E),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
+                                Text(ride.sessionCode, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("${ride.distanceKm} km · ${ride.durationMinutes} phút", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                    Text("${vndFormat.format(fee)} đ", fontWeight = FontWeight.SemiBold, color = colors.primary)
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -617,7 +572,7 @@ private fun RideHistoryDialog(
                                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                     ) {
                                         Icon(
-                                            Icons.Default.ReportProblem,
+                                            Icons.Outlined.ReportProblem,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -630,13 +585,9 @@ private fun RideHistoryDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Đóng")
-            }
+            ItsButton(onDismiss, Modifier.fillMaxWidth().heightIn(min = 48.dp), outlined = true) { Text("Đóng") }
         }
-    )
+    }
 }
 
 @Composable
@@ -668,7 +619,7 @@ internal fun ReportIssueDialog(
                 Text(
                     text = "Mã chuyến #${ride.sessionCode}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 issueOptions.forEach { (code, label) ->
                     Row(
@@ -697,10 +648,9 @@ internal fun ReportIssueDialog(
             }
         },
         confirmButton = {
-            Button(
+            ItsButton(
                 onClick = { onSubmit(selectedIssueType, description) },
                 enabled = !isSubmitting,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
             ) {
                 Text(if (isSubmitting) "Đang gửi..." else "Gửi báo cáo")
             }
@@ -713,6 +663,14 @@ internal fun ReportIssueDialog(
     )
 }
 
+private fun fleetStatusLabel(status: String) = when (status) {
+    "AVAILABLE" -> "Sẵn sàng"
+    "RESERVED" -> "Đang giữ"
+    "IN_USE" -> "Đang thuê"
+    "LOW_BATTERY" -> "Pin yếu"
+    "MAINTENANCE" -> "Bảo trì"
+    else -> "Tạm ngưng"
+}
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun VietMapLeafletWebView(
@@ -720,104 +678,143 @@ private fun VietMapLeafletWebView(
     vehicles: List<FleetVehicleDto>,
     selectedVehicleId: Long?,
     centerLat: Double,
-    centerLng: Double
+    centerLng: Double,
+    onSelect: (Long) -> Unit,
 ) {
-    val stationsJson = remember(stations) {
-        stations.joinToString(prefix = "[", postfix = "]", separator = ",") { st ->
-            val name = org.json.JSONObject.quote(st.stationName)
-            val addr = org.json.JSONObject.quote(st.address)
-            """{"name":$name,"addr":$addr,"lat":${st.latitude},"lng":${st.longitude},"avail":${st.availableVehicles},"docks":${st.totalDocks}}"""
-        }
+    val markers = remember(stations, vehicles) {
+        org.json.JSONArray().apply {
+            stations.forEach { station ->
+                put(org.json.JSONObject()
+                    .put("lat", station.latitude)
+                    .put("lng", station.longitude)
+                    .put("title", station.stationName)
+                    .put("detail", "${station.availableVehicles}/${station.totalDocks} chỗ có xe")
+                    .put("kind", "station"))
+            }
+            vehicles.forEach { vehicle ->
+                put(org.json.JSONObject()
+                    .put("id", vehicle.id)
+                    .put("lat", vehicle.latitude)
+                    .put("lng", vehicle.longitude)
+                    .put("title", vehicle.vehicleCode + " · " + vehicle.brand)
+                    .put("detail", "${fleetStatusLabel(vehicle.fleetStatus)} · Pin ${vehicle.batteryLevel}%")
+                    .put("kind", vehicle.fleetStatus))
+            }
+        }.toString()
     }
-    val vehiclesJson = remember(vehicles) {
-        vehicles.joinToString(prefix = "[", postfix = "]", separator = ",") { v ->
-            val code = org.json.JSONObject.quote(v.vehicleCode)
-            val brand = org.json.JSONObject.quote(v.brand)
-            val status = org.json.JSONObject.quote(v.fleetStatus)
-            """{"id":${v.id},"lat":${v.latitude},"lng":${v.longitude},"code":$code,"brand":$brand,"bat":${v.batteryLevel},"st":$status}"""
-        }
-    }
-    val selectedVehicle = remember(vehicles, selectedVehicleId) {
-        vehicles.find { it.id == selectedVehicleId }
-    }
-    val mapCenterLat = selectedVehicle?.latitude ?: centerLat
-    val mapCenterLng = selectedVehicle?.longitude ?: centerLng
-    val selectedIdValue = selectedVehicleId?.toString() ?: "null"
-
+    var nativeSize by remember { mutableStateOf(IntSize.Zero) }
+    val animations = android.animation.ValueAnimator.areAnimatorsEnabled()
+    val resize = "window.resizeMobilityMap && window.resizeMobilityMap(${nativeSize.width}, ${nativeSize.height});"
+    val script = resize + "window.updateMobilityMap && window.updateMobilityMap($markers, ${selectedVehicleId ?: "null"}, $animations);"
+    val latestScript by rememberUpdatedState(script)
+    val latestSelect by rememberUpdatedState(onSelect)
     val vietmapLayerScript = if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
         """
               L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
-                maxZoom: 20,
-                tileSize: 256,
-                attribution: '&copy; VietMap'
+                maxZoom: 20, tileSize: 256, attribution: '&copy; VietMap'
               }).addTo(map);
         """.trimIndent()
     } else ""
-
-    val html = remember(stationsJson, vehiclesJson, selectedIdValue, mapCenterLat, mapCenterLng, vietmapLayerScript) {
+    val html = remember(centerLat, centerLng, vietmapLayerScript) {
         """
         <!DOCTYPE html>
-        <html>
+        <html lang="vi">
         <head>
           <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
           <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
           <style>
-            html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #e2e8f0; overflow: hidden; }
-            #map { width: 100vw; height: 100vh; }
-            .its-station-pin, .its-vehicle-pin { background: transparent; border: none; }
+            html, body { margin: 0; width: 100%; height: 100%; background: #e4ece7; }
+            #map { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+            .mobility-dot { display:grid; place-items:center; background:#353940; color:#fff; border:2px solid #fff;
+              border-radius:50%; box-shadow:0 2px 8px #1a302957; font:700 12px system-ui; box-sizing:border-box; }
+            .mobility-dot.AVAILABLE { background:#286153; }
+            .mobility-dot.IN_USE { background:#315b84; }
+            .mobility-dot.RESERVED { background:#825431; }
+            .mobility-dot.LOW_BATTERY, .mobility-dot.MAINTENANCE { background:#964249; }
+            .mobility-dot.selected { outline:2px solid #ae6237; outline-offset:1px; }
+            .mobility-popup { max-height:180px; overflow:auto; min-width:140px; color:#142b29; font:13px system-ui; }
+            .mobility-popup div + div { border-top:1px solid #dce7e2; margin-top:7px; padding-top:7px; }
+            .mobility-popup a { display:block; font-weight:700; color:#284354; text-decoration:underline; }
+            .mobility-popup small { display:block; margin-top:3px; color:#48625a; }
           </style>
         </head>
         <body>
-          <div id="map"></div>
+          <div id="map" aria-label="Bản đồ xe và trạm"></div>
           <script>
             (function() {
+              var container = document.getElementById('map');
               if (typeof L === 'undefined') {
-                document.getElementById('map').innerHTML = '<div style="padding:24px;font-family:sans-serif;color:#334155;">Đang tải thư viện bản đồ...</div>';
+                container.textContent = 'Không tải được bản đồ.';
                 return;
               }
-              var map = L.map('map', { zoomControl: true }).setView([$mapCenterLat, $mapCenterLng], 14);
+              var map = L.map(container, { zoomControl: true }).setView([$centerLat, $centerLng], 14);
               L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
+                maxZoom: 19, attribution: '&copy; OpenStreetMap'
               }).addTo(map);
               $vietmapLayerScript
 
-              var stations = $stationsJson;
-              stations.forEach(function(st) {
-                var stIcon = L.divIcon({
-                  className: 'its-station-pin',
-                  html: '<div style="background:#0f172a;color:#fff;border:2px solid #38bdf8;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.35);">Hub · ' + st.avail + '/' + st.docks + '</div>',
-                  iconSize: [96, 24],
-                  iconAnchor: [48, 12]
+              var layer = L.layerGroup().addTo(map);
+              var markers = [], selectedId = null, previousId = null, sized = false;
+              function render() {
+                layer.clearLayers();
+                var groups = [];
+                markers.forEach(function(item) {
+                  var point = map.project([item.lat, item.lng]);
+                  var group = groups.find(function(candidate) { return candidate.point.distanceTo(point) < 37; });
+                  if (group) group.items.push(item);
+                  else groups.push({ point: point, anchor: [item.lat, item.lng], items: [item] });
                 });
-                L.marker([st.lat, st.lng], { icon: stIcon })
-                  .bindPopup('<b>' + st.name + '</b><br/>' + st.addr + '<br/>Sẵn sàng: ' + st.avail + '/' + st.docks)
-                  .addTo(map);
-              });
-
-              var vehicles = $vehiclesJson;
-              var selectedId = $selectedIdValue;
-              vehicles.forEach(function(v) {
-                var color = v.st === 'AVAILABLE' ? '#10b981'
-                          : v.st === 'IN_USE' ? '#2563eb'
-                          : v.st === 'RESERVED' ? '#f59e0b'
-                          : v.st === 'LOW_BATTERY' ? '#f97316'
-                          : '#ef4444';
-                var border = (selectedId !== null && v.id === selectedId) ? '3px solid #facc15' : '2px solid #ffffff';
-                var vIcon = L.divIcon({
-                  className: 'its-vehicle-pin',
-                  html: '<div style="display:flex;align-items:center;gap:4px;background:' + color + ';color:#fff;border:' + border + ';border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.3);"><span>' + v.code + '</span><span style="opacity:.9">' + v.bat + '%</span></div>',
-                  iconSize: [108, 24],
-                  iconAnchor: [54, 12]
+                groups.forEach(function(group) {
+                  var selected = group.items.some(function(item) { return item.id != null && item.id === selectedId; });
+                  var popup = document.createElement('div');
+                  popup.className = 'mobility-popup';
+                  group.items.forEach(function(item) {
+                    var row = document.createElement('div');
+                    var title = document.createElement(item.id == null ? 'strong' : 'a');
+                    if (item.id != null) title.href = 'https://its-mobility.invalid/vehicle/' + item.id;
+                    var detail = document.createElement('small');
+                    title.textContent = item.title;
+                    detail.textContent = item.detail;
+                    row.append(title, detail);
+                    popup.append(row);
+                  });
+                  var fleet = group.items.filter(function(item) { return item.kind !== 'station'; });
+                  var count = fleet.length;
+                  var kind = count === 1 ? fleet[0].kind : '';
+                  var label = count ? String(count) : 'T';
+                  var title = count ? count + ' xe tại đây' : group.items[0].title;
+                  L.marker(group.anchor, {
+                    icon: L.divIcon({ className: 'mobility-dot ' + kind + (selected ? ' selected' : ''),
+                      html: label, iconSize: [29, 29], iconAnchor: [14, 14] }),
+                    title: title, alt: title, zIndexOffset: selected ? 1000 : 0
+                  }).bindPopup(popup, { maxWidth: 245 }).addTo(layer);
                 });
-                L.marker([v.lat, v.lng], { icon: vIcon })
-                  .bindPopup('<b>' + v.code + ' · ' + v.brand + '</b><br/>Pin: ' + v.bat + '%<br/>Trạng thái: ' + v.st)
-                  .addTo(map);
-              });
-
-              setTimeout(function() { map.invalidateSize(); }, 200);
+              }
+              window.updateMobilityMap = function(items, id, animate) {
+                markers = items;
+                selectedId = id;
+                render();
+                if (id !== previousId) {
+                  previousId = id;
+                  var selected = items.find(function(item) { return item.id === id; });
+                  if (selected) map.panTo([selected.lat, selected.lng], { animate: animate, duration: 0.28 });
+                }
+              };
+              window.resizeMobilityMap = function(width, height) {
+                if (!width || !height) return;
+                var ratio = window.devicePixelRatio || 1;
+                container.style.width = Math.round(width / ratio) + 'px';
+                container.style.height = Math.round(height / ratio) + 'px';
+                map.invalidateSize({ animate:false });
+                if (!sized) {
+                  sized = true;
+                  map.setView([$centerLat, $centerLng], 14, { animate:false });
+                }
+              };
+              map.on('zoomend', render);
+              new ResizeObserver(function() { map.invalidateSize({pan:false}); }).observe(container);
             })();
           </script>
         </body>
@@ -825,8 +822,41 @@ private fun VietMapLeafletWebView(
         """.trimIndent()
     }
 
-    LeafletWebView(html = html, modifier = Modifier.fillMaxSize())
+    key(html) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize().onSizeChanged { nativeSize = it },
+            factory = { context ->
+                WebView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    settings.javaScriptEnabled = true
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            val uri = request.url
+                            if (request.isForMainFrame && uri.host == "its-mobility.invalid" && uri.pathSegments.firstOrNull() == "vehicle") {
+                                uri.lastPathSegment?.toLongOrNull()?.let(latestSelect)
+                                return true
+                            }
+                            return false
+                        }
+
+                        override fun onPageFinished(view: WebView, url: String?) {
+                            view.evaluateJavascript(latestScript, null)
+                        }
+                    }
+                    loadDataWithBaseURL("https://maps.vietmap.vn", html, "text/html", "UTF-8", null)
+                }
+            },
+            onRelease = { it.destroy() },
+            update = { webView ->
+                if (webView.tag != script) {
+                    webView.tag = script
+                    webView.evaluateJavascript(script, null)
+                }
+            },
+        )
+    }
 }
+
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable

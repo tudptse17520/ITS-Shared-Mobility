@@ -12,7 +12,7 @@ import { PageContainer } from "@/components/common/page-container";
 import { Toolbar } from "@/components/common/toolbar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { Plus } from "lucide-react";
+import { PlusIcon as Plus } from "@phosphor-icons/react/ssr";
 import {
   usePricingPolicies,
   useVehicleTypesForFilter,

@@ -5,7 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,11 +15,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import vn.edu.ut.its.mobility.BuildConfig
 import vn.edu.ut.its.mobility.model.RideSessionDto
+import vn.edu.ut.its.mobility.ui.ItsButton
+import vn.edu.ut.its.mobility.ui.ItsNotice
 import vn.edu.ut.its.mobility.ui.MainViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -30,13 +31,15 @@ fun ActiveRideScreen(
     ride: RideSessionDto,
     viewModel: MainViewModel
 ) {
+    val colors = MaterialTheme.colorScheme
     val vndFormat = remember { NumberFormat.getNumberInstance(Locale("vi", "VN")) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chuyến đi đang diễn ra", fontWeight = FontWeight.Bold) }
+                title = { Text("Đang thuê xe", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->
@@ -50,7 +53,7 @@ fun ActiveRideScreen(
         ) {
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F766E)),
+                colors = CardDefaults.cardColors(containerColor = colors.primaryContainer),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -63,18 +66,18 @@ fun ActiveRideScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = ride.vehicleCode ?: "ITS-VEHICLE",
+                            text = ride.vehicleCode ?: "Xe đang thuê",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = colors.onPrimaryContainer
                         )
                         Surface(
                             shape = RoundedCornerShape(999.dp),
-                            color = Color(0xFF14B8A6)
+                            color = colors.surface
                         ) {
                             Text(
-                                text = ride.lockStatus ?: "UNLOCKED",
-                                color = Color.White,
+                                text = if (ride.lockStatus == "LOCKED") "Đã khóa" else "Đã mở khóa",
+                                color = colors.primary,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                 style = MaterialTheme.typography.labelMedium
@@ -83,76 +86,20 @@ fun ActiveRideScreen(
                     }
                     Text(
                         text = "${ride.vehicleBrand ?: ""} · ${ride.plate ?: ""}",
-                        color = Color(0xFFCCFBF1)
+                        color = colors.onPrimaryContainer.copy(alpha = .82f)
                     )
                     Text(
                         text = "Mã chuyến: ${ride.sessionCode}",
-                        color = Color(0xFF99F6E4),
+                        color = colors.onPrimaryContainer.copy(alpha = .82f),
                         style = MaterialTheme.typography.bodySmall
                     )
-                }
-            }
-
-            // Các chỉ số thời gian thực (IoT Telemetry)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricBox(
-                    title = "Thời gian",
-                    value = "${ride.durationMinutes} phút",
-                    modifier = Modifier.weight(1f)
-                )
-                MetricBox(
-                    title = "Quãng đường",
-                    value = "${ride.distanceKm} km",
-                    modifier = Modifier.weight(1f)
-                )
-                MetricBox(
-                    title = "Dung lượng pin",
-                    value = "${ride.currentBatteryLevel ?: 100}%",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Tọa độ GPS hiện tại (IoT Telemetry)",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Lat: ${ride.currentLatitude ?: 0.0}  |  Lng: ${ride.currentLongitude ?: 0.0}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF334155)
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Cước phí tạm tính:", fontWeight = FontWeight.Medium)
-                        Text(
-                            text = "${vndFormat.format(ride.estimatedFee)} đ",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F766E),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
                 }
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(220.dp)
                     .clip(RoundedCornerShape(16.dp))
             ) {
                 val startLat = ride.startLatitude ?: ride.currentLatitude ?: 10.8045
@@ -184,13 +131,13 @@ fun ActiveRideScreen(
                           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
                           $vietmapLayerScript
                           L.polyline([[$startLat, $startLng], [$curLat, $curLng]], {
-                            color: '#2563eb', weight: 4, dashArray: '6 6'
+                            color: '#ac6840', weight: 4, dashArray: '6 6'
                           }).addTo(map);
                           L.circleMarker([$startLat, $startLng], {
                             radius: 6, color: '#fff', weight: 2, fillColor: '#64748b', fillOpacity: 1
                           }).addTo(map);
                           L.circleMarker([$curLat, $curLng], {
-                            radius: 9, color: '#fff', weight: 3, fillColor: '#0f766e', fillOpacity: 1
+                            radius: 9, color: '#fff', weight: 3, fillColor: '#294353', fillOpacity: 1
                           }).bindPopup('${ride.vehicleCode ?: "Xe đang đi"}').addTo(map);
                           setTimeout(function() { map.invalidateSize(); }, 150);
                         })();
@@ -202,53 +149,92 @@ fun ActiveRideScreen(
                 LeafletWebView(html = mapHtml, modifier = Modifier.fillMaxSize())
             }
 
-            viewModel.statusMessage?.let { msg ->
-                Text(msg, color = Color(0xFF166534), style = MaterialTheme.typography.bodySmall)
-            }
-            viewModel.errorMessage?.let { err ->
-                Text(err, color = Color(0xFF991B1B), style = MaterialTheme.typography.bodySmall)
+            // Các chỉ số thời gian thực (IoT Telemetry)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MetricBox(
+                    title = "Thời gian thuê",
+                    value = "${ride.durationMinutes} phút",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricBox(
+                    title = "Quãng đường",
+                    value = "${ride.distanceKm} km",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricBox(
+                    title = "Pin",
+                    value = "${ride.currentBatteryLevel ?: 100}%",
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Vị trí hiện tại",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = listOfNotNull(ride.currentLatitude, ride.currentLongitude).joinToString(", ").ifBlank { "Chưa có vị trí" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Cước tạm tính", fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "${vndFormat.format(ride.estimatedFee)} đ",
+                            fontWeight = FontWeight.Bold,
+                            color = colors.primary,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+            }
 
-            // Nút mô phỏng IoT di chuyển GPS
-            OutlinedButton(
+            ItsNotice(viewModel.errorMessage ?: viewModel.statusMessage, isError = viewModel.errorMessage != null)
+            ItsButton(
                 onClick = { viewModel.simulateIotRideStep() },
                 enabled = !viewModel.isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                outlined = true,
             ) {
-                Icon(Icons.Default.Navigation, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Mô phỏng di chuyển GPS (+300m / IoT Sim)")
+                Icon(Icons.Outlined.NearMe, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Thử di chuyển 300 m")
             }
-
             // Nút báo cáo sự cố chuyến đi
             TextButton(
                 onClick = { showFeedbackDialog = true },
                 enabled = !viewModel.isLoading,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Icon(Icons.Default.ReportProblem, contentDescription = null)
+                Icon(Icons.Outlined.ReportProblem, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Báo cáo sự cố chuyến đi")
             }
 
-            // Nút khóa xe & kết thúc chuyến đi
-            Button(
+            ItsButton(
                 onClick = { viewModel.endCurrentRide() },
                 enabled = !viewModel.isLoading,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(14.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
             ) {
-                Icon(Icons.Default.Lock, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Khóa xe & Kết thúc chuyến đi", fontWeight = FontWeight.Bold)
+                Icon(Icons.Outlined.Lock, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Kết thúc chuyến")
             }
         }
     }
@@ -279,14 +265,14 @@ private fun MetricBox(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(title, style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+            Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(4.dp))
             Text(value, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         }

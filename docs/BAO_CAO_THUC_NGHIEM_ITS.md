@@ -42,7 +42,7 @@ Tài liệu tổng hợp kiến trúc kỹ thuật, kiểm soát bảo mật, t�
 
 | Nhóm kiểm thử | Bộ test / Công cụ | Phạm vi xác minh |
 | :--- | :--- | :--- |
-| **Database Migration & Context** | Flyway (`V1__init_schema.sql`) + `ItsSharedMobilityApplicationTests` + `DemoSeedDisabledTest` | Tạo mới schema từ DB rỗng sạch và khởi chạy khi `ITS_DEMO_SEED=false` không lỗi. |
+| **Database Schema & Context** | Spring Data JPA / Hibernate (`ddl-auto=update`, `open-in-view=false`) + `ItsSharedMobilityApplicationTests` + `DemoSeedDisabledTest` | Tạo mới schema từ DB rỗng sạch và khởi chạy khi `ITS_DEMO_SEED=false` không lỗi. |
 | **Concurrency Lock** | `ConcurrencyReservationTest` | 50 luồng đồng thời đặt 1 xe -> đúng 1 thành công, 49 thất bại, xe ở trạng thái `RESERVED`. |
 | **Ride Lifecycle & VNPay** | `RideLifecycleTest` | Giữ xe -> mở khóa QR -> mô phỏng IoT GPS -> kết thúc chuyến -> tính cước -> khởi tạo giao dịch VNPay. |
 | **Security & RBAC Audit** | `SecurityAndWorkflowAuditTest` | Xác thực JWT, bảo vệ endpoint nhạy cảm, chặn thao tác sai quyền, kiểm tra ràng buộc `PricingPolicy` & `Feedback`. |

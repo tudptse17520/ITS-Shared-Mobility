@@ -31,7 +31,10 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        val apiBaseUrl = resolveConfig("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
+        val apiBaseUrl = resolveConfig(
+            "API_BASE_URL",
+            resolveConfig("itsApiBaseUrl", "http://10.0.2.2:8080/api/v1/")
+        )
         val vietmapKey = resolveConfig("VIETMAP_API_KEY", "")
         val mapsApiKey = resolveConfig("MAPS_API_KEY", "MAPS_API_KEY_PLACEHOLDER")
 

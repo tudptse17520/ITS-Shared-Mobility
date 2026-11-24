@@ -11,7 +11,7 @@ import { UserModal } from "@/features/users/components/user-modal";
 import { useUsers } from "@/features/users/hooks/use-users";
 import { useUserActions } from "@/features/users/hooks/use-user-actions";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { PlusIcon as Plus, UsersThreeIcon as Users } from "@phosphor-icons/react/ssr";
 import { EmptyState } from "@/components/common/empty-state";
 
 export default function UsersPage() {

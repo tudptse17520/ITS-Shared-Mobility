@@ -17,21 +17,16 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   useEffect(() => {
     const root = document.documentElement;
-
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else if (theme === "light") {
-      root.classList.remove("dark");
-    } else {
-      // System preference
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      if (prefersDark) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    function applyTheme() {
+      const dark = theme === "system" ? media.matches : theme === "dark";
+      root.classList.toggle("dark", dark);
+      root.dataset.theme = dark ? "dark" : "light";
+    }
+    applyTheme();
+    if (theme === "system") {
+      media.addEventListener("change", applyTheme);
+      return () => media.removeEventListener("change", applyTheme);
     }
   }, [theme]);
 

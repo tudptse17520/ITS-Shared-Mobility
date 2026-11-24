@@ -18,17 +18,10 @@ interface ActivityState {
   addActivity: (activity: Omit<SystemActivity, "id" | "timestamp">) => void;
 }
 
-const initialActivities: SystemActivity[] = [
-  { id: "1", type: "create_user", title: "Admin khởi tạo dữ liệu đội xe ITS Shared Mobility", timestamp: Date.now() - 10 * 60 * 1000, icon: "UserPlus", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { id: "2", type: "block_user", title: "Tài khoản user_01 bị tạm khóa", timestamp: Date.now() - 20 * 60 * 1000, icon: "UserMinus", color: "text-rose-500", bg: "bg-rose-500/10" },
-  { id: "3", type: "update_config", title: "Admin cập nhật thời gian giữ xe 15 phút", timestamp: Date.now() - 30 * 60 * 1000, icon: "Settings", color: "text-blue-500", bg: "bg-blue-500/10" },
-  { id: "4", type: "security", title: "Phát hiện 5 lần đăng nhập sai mật khẩu", timestamp: Date.now() - 60 * 60 * 1000, icon: "ShieldAlert", color: "text-amber-500", bg: "bg-amber-500/10" },
-];
-
 export const useActivityStore = create<ActivityState>()(
   persist(
     (set) => ({
-      activities: initialActivities,
+      activities: [],
       addActivity: (activity) =>
         set((state) => {
           const newActivity: SystemActivity = {
@@ -41,6 +34,11 @@ export const useActivityStore = create<ActivityState>()(
     }),
     {
       name: "its-activity-log-v2",
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as Partial<ActivityState>;
+        return { activities: state.activities?.filter((activity) => !/^[1-4]$/.test(activity.id)) ?? [] };
+      },
     }
   )
 );

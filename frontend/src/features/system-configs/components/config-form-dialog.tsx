@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { X, Save, ShieldAlert } from "lucide-react";
+import { XIcon as X, FloppyDiskIcon as Save, ShieldWarningIcon as ShieldAlert } from "@phosphor-icons/react/ssr";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

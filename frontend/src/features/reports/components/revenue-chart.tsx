@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { BarChart3 } from "lucide-react";
+import { ChartBarIcon as BarChart3 } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import type { ReportFilter, ReportDetail } from "../types/report.type";
 

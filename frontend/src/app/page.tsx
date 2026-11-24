@@ -1,20 +1,22 @@
 import Link from "next/link";
+import { ArrowUpRightIcon as ArrowUpRight } from "@phosphor-icons/react/ssr";
+import { AuthFrame } from "@/components/layout/auth-frame";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <h1 className="text-4xl font-bold text-center">
-        ITS-Shared-Mobility
-      </h1>
-      <p className="text-lg text-muted-foreground text-center">
-        Hệ thống cho thuê phương tiện giao thông chia sẻ & quản lý đội xe thông minh (ITS)
-      </p>
-      <Link
-        href="/login"
-        className="rounded-md bg-primary px-8 py-3 text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Đăng nhập
-      </Link>
-    </div>
+    <AuthFrame>
+      <div className="animate-fade-in w-full max-w-sm">
+        <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">Thuê xe trong thành phố</h1>
+        <div className="mt-7 flex flex-wrap gap-2">
+          <Link href="/login" className={buttonVariants({ size: "lg", className: "h-11 px-4" })}>
+            Đăng nhập <ArrowUpRight />
+          </Link>
+          <Link href="/register" className={buttonVariants({ variant: "outline", size: "lg", className: "h-11 px-4" })}>
+            Tạo tài khoản
+          </Link>
+        </div>
+      </div>
+    </AuthFrame>
   );
 }

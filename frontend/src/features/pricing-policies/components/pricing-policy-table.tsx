@@ -10,7 +10,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/common/data-table";
 import { PricingPolicy } from "@/features/pricing-policies/types/pricing-policy.type";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2 } from "lucide-react";
+import { PencilSimpleLineIcon as Edit2, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import { formatCurrency } from "@/utils/format-currency";
 import { Badge } from "@/components/ui/badge";
 

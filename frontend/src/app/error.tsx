@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertCircle, RotateCcw } from "lucide-react";
+import { WarningCircleIcon as AlertCircle, ArrowCounterClockwiseIcon as RotateCcw } from "@phosphor-icons/react/ssr";
 
 export default function Error({
   error,

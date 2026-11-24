@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type ComponentType } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  ShieldAlert,
-  UserPlus,
-  Settings,
-  UserMinus,
-  Edit,
-  MapPin,
-  Plus,
-  type LucideIcon,
-} from "lucide-react";
+  ShieldWarningIcon as ShieldAlert,
+  UserPlusIcon as UserPlus,
+  GearSixIcon as Settings,
+  UserMinusIcon as UserMinus,
+  PencilSimpleIcon as Edit,
+  MapPinIcon as MapPin,
+  PlusIcon as Plus,
+} from "@phosphor-icons/react/ssr";
 import { useActivityStore } from "@/stores/activity.store";
 
-const iconMap: Record<string, LucideIcon> = {
+const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   UserPlus,
   UserMinus,
   Settings,
@@ -61,13 +60,16 @@ export function AdminSystemActivity() {
   }
 
   return (
-    <Card className="col-span-1 shadow-sm border-white/5 bg-background">
+    <Card className="min-w-0">
       <CardHeader>
-        <CardTitle>Nhật ký hệ thống</CardTitle>
-        <CardDescription>Hoạt động quản trị gần đây</CardDescription>
+        <CardTitle>Hoạt động gần đây</CardTitle>
+        <CardDescription>Thao tác trên trình duyệt này</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+        {activities.length === 0 && (
+          <p className="py-4 text-sm text-muted-foreground">Chưa có thao tác nào.</p>
+        )}
+        <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
           {activities.map((activity) => {
             const Icon = iconMap[activity.icon] || Settings;
             return (

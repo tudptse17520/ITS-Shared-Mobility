@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Eye, Trash2 } from "lucide-react";
+import { PencilSimpleIcon as Edit, EyeIcon as Eye, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Feedback, type FeedbackStatus, type IssueType } from "../types/feedback.type";

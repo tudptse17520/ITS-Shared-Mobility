@@ -2,19 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AuthFrame } from "@/components/layout/auth-frame";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  UserPlus,
-  User,
-  Lock,
-  Phone,
-  BadgeInfo,
-  Bike,
-} from "lucide-react";
+import { EyeIcon as Eye, EyeSlashIcon as EyeOff, CircleNotchIcon as Loader2, UserPlusIcon as UserPlus, UserIcon as User, LockKeyIcon as Lock, PhoneIcon as Phone, IdentificationBadgeIcon as BadgeInfo } from "@phosphor-icons/react/ssr";
 
 import { authService } from "@/services/auth.service";
 import { setCookie } from "@/utils/storage";
@@ -100,21 +91,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center p-4">
-      <div className="fixed inset-0 gradient-bg" />
-      <div className="fixed inset-0 bg-background/60" />
-
-      <div className="relative z-10 w-full max-w-[460px] rounded-[28px] border border-border/40 bg-card/95 p-8 md:p-10 shadow-xl backdrop-blur-xl">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
-            <Bike className="h-7 w-7 stroke-[2]" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Đăng ký tài khoản</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Tạo tài khoản khách thuê phương tiện trên hệ thống ITS-Shared-Mobility.
-          </p>
-        </div>
-
+    <AuthFrame>
+      <div className="animate-fade-in w-full max-w-sm">
+        <h1 className="mb-5 text-3xl font-semibold tracking-[-0.04em]">Tạo tài khoản</h1>
         {errorMsg && (
           <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
             {errorMsg}
@@ -129,6 +108,7 @@ export default function RegisterPage() {
             </Label>
             <Input
               id="reg-username"
+              autoComplete="username"
               placeholder="VD: nguyenvana (tối thiểu 3 ký tự)"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -145,6 +125,7 @@ export default function RegisterPage() {
             </Label>
             <Input
               id="reg-fullname"
+              autoComplete="name"
               placeholder="VD: Nguyễn Văn A"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -161,6 +142,8 @@ export default function RegisterPage() {
             </Label>
             <Input
               id="reg-phone"
+              type="tel"
+              autoComplete="tel"
               placeholder="VD: 0911222333"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
@@ -190,7 +173,6 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
                 aria-label="Hiện hoặc ẩn mật khẩu"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -218,7 +200,7 @@ export default function RegisterPage() {
           <Button
             type="submit"
             disabled={isPending}
-            className="mt-2 h-11 w-full rounded-xl bg-indigo-600 font-semibold text-white hover:bg-indigo-700"
+            className="mt-2 h-11 w-full rounded-xl font-semibold"
           >
             {isPending ? (
               <>
@@ -236,12 +218,12 @@ export default function RegisterPage() {
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
           <span>Đã có tài khoản? </span>
-          <Link href="/login" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
+          <Link href="/login" className="font-semibold text-primary hover:underline">
             Đăng nhập ngay
           </Link>
         </div>
       </div>
-    </div>
+    </AuthFrame>
   );
 }
 

@@ -3,13 +3,14 @@
 import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bike, Moon, Sun, LogOut } from "lucide-react";
+import { MoonIcon as Moon, SunIcon as Sun, SignOutIcon as LogOut } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 import { useThemeStore } from "@/stores/theme.store";
 import { getDriverNavItems } from "@/config/menu";
 import { removeCookie } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/layout/brand";
 
 const emptySubscribe = () => () => {};
 
@@ -20,7 +21,7 @@ export default function DriverLayout({
 }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const { theme, setTheme } = useThemeStore();
+  const { setTheme } = useThemeStore();
   const navItems = getDriverNavItems();
 
   const mounted = useSyncExternalStore(
@@ -30,7 +31,7 @@ export default function DriverLayout({
   );
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");
   };
 
   const handleLogout = () => {
@@ -40,15 +41,13 @@ export default function DriverLayout({
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="workspace-backdrop min-h-dvh">
       {/* Top Navbar — Glass effect */}
-      <nav className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-md">
+      <nav className="workspace-glass sticky top-0 z-30 mx-2.5 mt-2.5 rounded-[20px] border sm:mx-4 sm:mt-4">
         <div className="mx-auto flex h-14 max-w-none items-center justify-between px-4 sm:px-10">
           {/* Logo */}
           <Link href="/profile" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Bike className="h-4 w-4" />
-            </div>
+            <BrandMark className="size-8" />
             <span className="text-base font-bold tracking-tight">ITS Mobility</span>
           </Link>
 
@@ -83,13 +82,10 @@ export default function DriverLayout({
                   size="icon"
                   onClick={toggleTheme}
                   className="h-8 w-8 rounded-lg"
-                  aria-label={theme === "dark" ? "Chế độ sáng" : "Chế độ tối"}
+                  aria-label="Đổi giao diện sáng tối"
                 >
-                  {theme === "dark" ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
+                  <Sun className="size-4 dark:hidden" />
+                  <Moon className="hidden size-4 dark:block" />
                 </Button>
 
                 {user ? (
@@ -156,7 +152,7 @@ export default function DriverLayout({
         </div>
       </nav>
 
-      <main className="mx-auto max-w-none p-4 sm:p-10">{children}</main>
+      <main className="mx-auto w-full max-w-7xl min-w-0 p-2.5 sm:p-5">{children}</main>
     </div>
   );
 }

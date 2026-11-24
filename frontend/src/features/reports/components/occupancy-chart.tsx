@@ -3,7 +3,7 @@ import { useOccupancyReport } from "../hooks/use-report";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { EmptyState } from "@/components/common/empty-state";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Layers } from "lucide-react";
+import { StackIcon as Layers } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import type { ReportFilter } from "../types/report.type";
 

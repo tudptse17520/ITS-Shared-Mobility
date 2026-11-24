@@ -12,17 +12,17 @@ import { formatCurrency } from "@/utils/format-currency";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { EmptyState } from "@/components/common/empty-state";
 import {
-  User,
-  Phone,
-  Shield,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Wallet,
-  Receipt,
-  Car,
-} from "lucide-react";
+  UserIcon as User,
+  PhoneIcon as Phone,
+  ShieldIcon as Shield,
+  ClockIcon as Clock,
+  CheckCircleIcon as CheckCircle2,
+  XCircleIcon as XCircle,
+  WarningCircleIcon as AlertCircle,
+  WalletIcon as Wallet,
+  ReceiptIcon as Receipt,
+  CarIcon as Car,
+} from "@phosphor-icons/react/ssr";
 
 // ---------------------------------------------------------------------------
 // Profile Info Card

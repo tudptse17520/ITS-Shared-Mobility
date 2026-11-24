@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileQuestion, ArrowLeft } from "lucide-react";
+import { FileTextIcon as FileQuestion, ArrowLeftIcon as ArrowLeft } from "@phosphor-icons/react/ssr";
 
 export default function NotFound() {
   return (

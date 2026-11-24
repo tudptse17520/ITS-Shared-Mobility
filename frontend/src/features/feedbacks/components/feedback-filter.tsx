@@ -2,7 +2,7 @@
 
 import { IssueType, FeedbackStatus } from "../types/feedback.type";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlassIcon as Search } from "@phosphor-icons/react/ssr";
 import { Input } from "@/components/ui/input";
 
 interface FeedbackFilterProps {

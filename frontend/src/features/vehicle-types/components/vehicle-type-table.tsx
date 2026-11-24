@@ -10,7 +10,7 @@ import {
   VEHICLE_TYPE_STATUS_LABELS,
 } from "@/constants/vehicle-type-status";
 import { Button } from "@/components/ui/button";
-import { Edit2, Ban, Trash2 } from "lucide-react";
+import { PencilSimpleLineIcon as Edit2, ProhibitIcon as Ban, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 
 interface VehicleTypeTableProps {
