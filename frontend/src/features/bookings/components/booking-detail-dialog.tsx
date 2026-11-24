@@ -1,7 +1,7 @@
 import React from 'react';
 import { Portal } from '@/components/common/portal';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { XIcon as X } from "@phosphor-icons/react/ssr";
 import { BookingContextData } from './booking-table';
 import { format, parseISO } from 'date-fns';
 import { BookingStatusBadge } from './booking-status-badge';
