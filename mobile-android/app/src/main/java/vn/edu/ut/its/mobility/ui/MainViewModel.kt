@@ -70,7 +70,7 @@ class MainViewModel : ViewModel() {
                     errorMessage = parseError(res.errorBody()?.string(), "Đăng nhập thất bại")
                 }
             } catch (e: Exception) {
-                errorMessage = "Không thể kết nối máy chủ: ${e.localizedMessage}"
+                errorMessage = "Không kết nối được máy chủ."
             } finally {
                 isLoading = false
             }
@@ -95,7 +95,7 @@ class MainViewModel : ViewModel() {
                     errorMessage = parseError(res.errorBody()?.string(), "Đăng ký thất bại")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -147,7 +147,7 @@ class MainViewModel : ViewModel() {
                     }
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi tải dữ liệu: ${e.localizedMessage}"
+                errorMessage = "Không tải được danh sách xe."
             } finally {
                 isLoading = false
             }
@@ -187,7 +187,7 @@ class MainViewModel : ViewModel() {
                     errorMessage = parseError(res.errorBody()?.string(), "Đặt giữ xe thất bại")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -202,13 +202,13 @@ class MainViewModel : ViewModel() {
             try {
                 val res = RetrofitClient.api.cancelReservation(vehicle.id)
                 if (res.isSuccessful) {
-                    statusMessage = "Đã hủy đặt giữ xe ${vehicle.vehicleCode}."
+                    statusMessage = "Đã hủy giữ xe ${vehicle.vehicleCode}."
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể hủy đặt giữ xe")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -226,7 +226,7 @@ class MainViewModel : ViewModel() {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể tải lịch sử chuyến đi")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi tải lịch sử chuyến đi: ${e.localizedMessage}"
+                errorMessage = "Không tải được lịch sử chuyến đi."
             } finally {
                 isLoadingHistory = false
             }
@@ -236,7 +236,7 @@ class MainViewModel : ViewModel() {
     fun startRideByCode(rawCode: String) {
         val normalizedCode = extractVehicleCodeFromQr(rawCode)
         if (normalizedCode.isBlank()) {
-            errorMessage = "Mã xe (QR Code) không hợp lệ."
+            errorMessage = "Mã xe không hợp lệ."
             return
         }
         viewModelScope.launch {
@@ -259,7 +259,7 @@ class MainViewModel : ViewModel() {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể mở khóa xe")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -275,13 +275,13 @@ class MainViewModel : ViewModel() {
                 val res = RetrofitClient.api.simulateRideStep(sessionId)
                 if (res.isSuccessful && res.body() != null) {
                     activeRide = res.body()
-                    statusMessage = "IoT Sim: Đã cập nhật GPS mới (${activeRide?.distanceKm} km)"
+                    statusMessage = "Đã cập nhật vị trí xe."
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể mô phỏng di chuyển")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -302,13 +302,13 @@ class MainViewModel : ViewModel() {
                     completedRideForPayment = res.body()
                     activeRide = null
                     vnpayPaymentUrl = null
-                    statusMessage = "Đã khóa xe! Vui lòng thanh toán cước phí."
+                    statusMessage = "Đã khóa xe. Bạn có thể thanh toán cước chuyến đi."
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Không thể kết thúc chuyến đi")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -333,18 +333,18 @@ class MainViewModel : ViewModel() {
                     val payment = res.body()!!
                     if (method == "Vnpay" && !payment.paymentUrl.isNullOrBlank()) {
                         vnpayPaymentUrl = payment.paymentUrl
-                        statusMessage = "Đang mở cổng thanh toán VNPay Sandbox..."
+                        statusMessage = "Đang mở VNPay…"
                     } else {
                         completedRideForPayment = null
                         vnpayPaymentUrl = null
-                        statusMessage = "Thanh toán thành công! Cảm ơn bạn đã sử dụng ITS Mobility."
+                        statusMessage = "Đã thanh toán."
                         refreshFleet()
                     }
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Tạo giao dịch thất bại")
                 }
             } catch (e: Exception) {
-                errorMessage = "Lỗi kết nối: ${e.localizedMessage}"
+                errorMessage = "Mất kết nối. Bạn thử lại nhé."
             } finally {
                 isLoading = false
             }
@@ -358,7 +358,7 @@ class MainViewModel : ViewModel() {
                 try {
                     val res = RetrofitClient.api.getRideSession(sessionId)
                     if (res.isSuccessful && res.body() != null && res.body()!!.paid) {
-                        statusMessage = "Thanh toán VNPay thành công!"
+                        statusMessage = "Đã thanh toán qua VNPay."
                     }
                 } catch (_: Exception) {
                 }

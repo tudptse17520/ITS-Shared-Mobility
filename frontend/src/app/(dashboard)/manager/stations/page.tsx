@@ -5,7 +5,7 @@ import { PageContainer } from '@/components/common/page-container';
 import { PageHeader } from '@/components/common/page-header';
 import { Toolbar } from '@/components/common/toolbar';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { MagnifyingGlassIcon as Search } from "@phosphor-icons/react/ssr";
 import { StationFilter } from '@/features/stations/components/station-filter';
 import { StationTable } from '@/features/stations/components/station-table';
 import { StationModal } from '@/features/stations/components/station-modal';

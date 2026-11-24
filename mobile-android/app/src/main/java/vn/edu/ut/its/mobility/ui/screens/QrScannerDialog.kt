@@ -5,18 +5,17 @@ import android.graphics.BitmapFactory
 import android.graphics.Color as AndroidColor
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,8 +33,11 @@ import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import vn.edu.ut.its.mobility.ui.ItsButton
+import vn.edu.ut.its.mobility.ui.ItsNotice
 import vn.edu.ut.its.mobility.ui.extractVehicleCodeFromQr
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScannerDialog(
     availableCodes: List<String>,
@@ -48,6 +50,9 @@ fun QrScannerDialog(
     var decodedStatus by remember { mutableStateOf<String?>(null) }
     var isDecodingError by remember { mutableStateOf(false) }
 
+    var isConfirming by remember { mutableStateOf(false) }
+    var showSample by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -58,6 +63,7 @@ fun QrScannerDialog(
     val qrBitmap = remember(qrPayload) { generateQrBitmap(qrPayload, sizePx = 360) }
 
     fun handleDecodedBitmap(bitmap: Bitmap) {
+        if (isConfirming) return
         val rawDecoded = decodeQrFromBitmap(bitmap)
         if (rawDecoded.isNullOrBlank()) {
             isDecodingError = true
@@ -67,12 +73,13 @@ fun QrScannerDialog(
         val extracted = extractVehicleCodeFromQr(rawDecoded)
         if (extracted.isBlank()) {
             isDecodingError = true
-            decodedStatus = "Mã QR không chứa mã phương tiện ITS hợp lệ: $rawDecoded"
+            decodedStatus = "Mã QR không chứa mã xe hợp lệ."
             return
         }
         isDecodingError = false
         codeInput = extracted
-        decodedStatus = "Đã quét: $rawDecoded -> Mã xe: $extracted"
+        decodedStatus = "Đã nhận mã $extracted"
+        isConfirming = true
         scope.launch {
             delay(500)
             onConfirmCode(extracted)
@@ -97,164 +104,61 @@ fun QrScannerDialog(
         }
     }
 
-    AlertDialog(
+    val colors = MaterialTheme.colorScheme
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text("Quét mã QR Mở khóa xe", fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF0F172A),
-                    border = BorderStroke(2.dp, Color(0xFF14B8A6)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Tem QR thực tế của xe (Quét thử trên máy ảo)",
-                            color = Color(0xFF5EEAD4),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-
-                        if (qrBitmap != null) {
-                            Box(
-                                modifier = Modifier
-                                    .background(Color.White, RoundedCornerShape(12.dp))
-                                    .padding(8.dp)
-                            ) {
-                                Image(
-                                    bitmap = qrBitmap.asImageBitmap(),
-                                    contentDescription = "Mã QR $normalizedPreviewCode",
-                                    modifier = Modifier.size(148.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = qrPayload,
-                            color = Color(0xFFCBD5E1),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    qrBitmap?.let { handleDecodedBitmap(it) }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF14B8A6),
-                                    contentColor = Color(0xFF0F172A)
-                                ),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Quét & Giải mã (ZXing)",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = { imagePickerLauncher.launch("image/*") },
-                                border = BorderStroke(1.dp, Color(0xFF5EEAD4)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF5EEAD4)),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PhotoLibrary,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Ảnh QR",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-
-                decodedStatus?.let { msg ->
-                    Surface(
-                        color = if (isDecodingError) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = msg,
-                            color = if (isDecodingError) Color(0xFF991B1B) else Color(0xFF166534),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(10.dp)
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = codeInput,
-                    onValueChange = { codeInput = it },
-                    label = { Text("Mã xe (QR Code / URI)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (availableCodes.isNotEmpty()) {
-                    Text(
-                        text = "Chọn nhanh mã xe gần bạn:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF475569)
-                    )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(availableCodes.take(5)) { code ->
-                            SuggestionChip(
-                                onClick = { codeInput = code },
-                                label = { Text(code) }
-                            )
-                        }
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surface,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 18.dp, end = 18.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Mở khóa bằng mã QR", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Chọn ảnh mã QR của xe hoặc nhập mã xe.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            OutlinedTextField(codeInput, { codeInput = it }, label = { Text("Mã xe") }, singleLine = true,
+                enabled = !isConfirming, modifier = Modifier.fillMaxWidth())
+            if (availableCodes.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(availableCodes.take(5), key = { it }) { code ->
+                        FilterChip(selected = codeInput == code, onClick = { codeInput = code },
+                            enabled = !isConfirming, label = { Text(code) })
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
+            ItsNotice(decodedStatus, isError = isDecodingError)
+            ItsButton(
                 onClick = { onConfirmCode(codeInput) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                enabled = codeInput.isNotBlank() && !isConfirming,
+            ) { Text("Mở khóa") }
+            ItsButton(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                enabled = !isConfirming,
+                outlined = true,
             ) {
-                Text("Mở khóa ngay")
+                Icon(Icons.Outlined.PhotoLibrary, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Chọn ảnh QR")
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Hủy")
+            HorizontalDivider()
+            TextButton(onClick = { showSample = !showSample }, enabled = !isConfirming) {
+                Icon(Icons.Outlined.QrCode, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (showSample) "Ẩn mã QR dùng thử" else "Xem mã QR dùng thử")
+            }
+            AnimatedVisibility(showSample) {
+                if (qrBitmap != null) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(qrBitmap.asImageBitmap(), "Mã QR $normalizedPreviewCode",
+                            Modifier.background(Color.White, MaterialTheme.shapes.medium).padding(10.dp).size(132.dp))
+                        TextButton(onClick = { handleDecodedBitmap(qrBitmap) }, enabled = !isConfirming) { Text("Dùng mã này") }
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 private fun generateQrBitmap(content: String, sizePx: Int): Bitmap? {

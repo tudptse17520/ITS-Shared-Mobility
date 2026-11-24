@@ -18,7 +18,7 @@ import {
 } from "@tanstack/react-table";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowsDownUpIcon as ArrowUpDown, ArrowUpIcon as ArrowUp, ArrowDownIcon as ArrowDown, CaretLeftIcon as ChevronLeft, CaretRightIcon as ChevronRight } from "@phosphor-icons/react/ssr";
 import { EmptyState } from "@/components/common/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -67,7 +67,7 @@ export function DataTable<TData, TValue>({
   if (isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
-        <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
+        <div className="table-viewport rounded-[18px] border bg-card">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-muted/40">
@@ -94,18 +94,18 @@ export function DataTable<TData, TValue>({
   return (
     <div className={cn("space-y-4", className)}>
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-black/20 shadow-sm overflow-hidden">
+      <div className="table-viewport rounded-[18px] border bg-card">
         <table className="w-full">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr
                 key={headerGroup.id}
-                className="border-b border-border/50 bg-[#1C2433] text-white dark:bg-slate-800/80"
+                className="border-b bg-muted/70 text-foreground"
               >
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="group px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-100 dark:text-slate-300"
+                    className="group px-4 py-3.5 text-left text-xs font-semibold text-muted-foreground"
                   >
                     {header.isPlaceholder ? null : (
                       <div
@@ -143,10 +143,10 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                   <tr
                   key={row.id}
-                  className="border-b border-border/10 transition-colors duration-200 hover:bg-slate-100/80 dark:hover:bg-white/5 last:border-0"
+                  className="border-b transition-colors duration-150 hover:bg-muted/55 last:border-0"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 text-sm align-middle h-[60px]">
+                    <td key={cell.id} className="px-4 py-3 text-sm align-middle h-13">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -173,11 +173,12 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-1 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <span className="text-xs sm:text-sm font-medium">Hiển thị</span>
           <select
             value={table.getState().pagination.pageSize}
+            aria-label="Số dòng mỗi trang"
             onChange={(e) => table.setPageSize(Number(e.target.value))}
             className="h-8 rounded-md border border-border/60 bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           >
@@ -198,6 +199,7 @@ export function DataTable<TData, TValue>({
             <button
               type="button"
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border/60 bg-background hover:bg-muted disabled:opacity-40 transition-colors duration-200"
+              aria-label="Trang trước"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage() || isLoading}
             >
@@ -206,6 +208,7 @@ export function DataTable<TData, TValue>({
             <button
               type="button"
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border/60 bg-background hover:bg-muted disabled:opacity-40 transition-colors duration-200"
+              aria-label="Trang sau"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage() || isLoading}
             >

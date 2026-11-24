@@ -1,4 +1,4 @@
-import { Bike } from "lucide-react";
+import { BicycleIcon as Bike } from "@phosphor-icons/react/ssr";
 
 export default function Loading() {
   return (

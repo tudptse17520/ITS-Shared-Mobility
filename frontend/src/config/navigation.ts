@@ -3,20 +3,8 @@
 // Định nghĩa mảng Menu tĩnh cho Sidebar
 // ---------------------------------------------
 
-import {
-  LayoutDashboard,
-  Users,
-  Settings,
-  MapPin,
-  Bike,
-  DollarSign,
-  MessageSquareWarning,
-  BarChart3,
-  CalendarCheck,
-  Car,
-  UserCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { SquaresFourIcon as LayoutDashboard, UsersThreeIcon as Users, GearSixIcon as Settings, MapPinIcon as MapPin, BicycleIcon as Bike, CurrencyDollarIcon as DollarSign, ChatCircleDotsIcon as MessageSquareWarning, ChartBarIcon as BarChart3, CalendarCheckIcon as CalendarCheck, CarIcon as Car, UserCircleIcon as UserCircle } from "@phosphor-icons/react/ssr";
+import type { Icon as LucideIcon } from "@phosphor-icons/react";
 import { Role } from "@/constants/role";
 
 export interface NavItem {
@@ -33,16 +21,16 @@ export interface NavGroup {
 
 export const ADMIN_NAV: NavGroup[] = [
   {
-    label: "Tổng quan",
+    label: "Điều hướng",
     items: [
       {
-        title: "Dashboard",
+        title: "Tổng quan",
         href: "/admin/dashboard",
         icon: LayoutDashboard,
         roles: [Role.ADMIN],
       },
       {
-        title: "Bản đồ Đội xe & IoT",
+        title: "Bản đồ đội xe",
         href: "/admin/fleet-map",
         icon: Bike,
         roles: [Role.ADMIN],
@@ -50,28 +38,28 @@ export const ADMIN_NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Quản lý Shared Mobility",
+    label: "Vận hành",
     items: [
       {
-        title: "Trạm xe công cộng",
+        title: "Trạm xe",
         href: "/manager/stations",
         icon: MapPin,
         roles: [Role.ADMIN],
       },
       {
-        title: "Loại xe cho thuê",
+        title: "Loại xe",
         href: "/manager/vehicle-types",
         icon: Car,
         roles: [Role.ADMIN],
       },
       {
-        title: "Bảng giá thuê xe",
+        title: "Bảng giá",
         href: "/manager/pricing",
         icon: DollarSign,
         roles: [Role.ADMIN],
       },
       {
-        title: "Đặt giữ & Chuyến đi",
+        title: "Đặt xe và chuyến đi",
         href: "/manager/bookings",
         icon: CalendarCheck,
         roles: [Role.ADMIN],
@@ -83,13 +71,13 @@ export const ADMIN_NAV: NavGroup[] = [
         roles: [Role.ADMIN],
       },
       {
-        title: "Sự cố & Phản hồi",
+        title: "Sự cố và phản hồi",
         href: "/manager/feedbacks",
         icon: MessageSquareWarning,
         roles: [Role.ADMIN],
       },
       {
-        title: "Thống kê Doanh thu",
+        title: "Doanh thu",
         href: "/manager/reports",
         icon: BarChart3,
         roles: [Role.ADMIN],

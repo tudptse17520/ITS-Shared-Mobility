@@ -6,7 +6,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { AlertTriangle } from "lucide-react";
+import { WarningIcon as AlertTriangle } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Portal } from "@/components/common/portal";
 

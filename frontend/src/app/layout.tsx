@@ -7,6 +7,7 @@ import { ToastProvider } from "@/providers/toast-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { OpeningFilm } from "@/components/layout/opening-film";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,9 +21,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ITS-Shared-Mobility - Hệ thống Cho thuê Phương tiện Giao thông Chia sẻ",
+  title: "ITS Mobility",
   description:
-    "Nền tảng quản trị đội xe thông minh & phương tiện chia sẻ (ITS Shared Mobility)",
+    "Thuê xe và quản lý đội xe tại TP. Hồ Chí Minh.",
 };
 
 export default function RootLayout({
@@ -37,6 +38,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <OpeningFilm />
         <QueryProvider>
           <ThemeProvider>
             <AuthProvider>

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Edit2, Clock } from "lucide-react";
+import { PencilSimpleLineIcon as Edit2, ClockIcon as Clock } from "@phosphor-icons/react/ssr";
 import { SystemConfig } from "../types/config.type";
 import { DataTable } from "@/components/common/data-table";
 import { Button } from "@/components/ui/button";

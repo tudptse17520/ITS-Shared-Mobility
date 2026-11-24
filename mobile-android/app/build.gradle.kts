@@ -15,7 +15,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/api/v1/\"")
+        val apiBaseUrl = providers.gradleProperty("itsApiBaseUrl").orElse("http://10.0.2.2:8080/api/v1/")
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl.get()}\"")
         buildConfigField("String", "VIETMAP_API_KEY", "\"660b3d92e2173b974557cd78118076c8b861dddceb0e8247\"")
         manifestPlaceholders["MAPS_API_KEY"] = "AIzaSyDummyKeyForVietMapOverlay"
     }

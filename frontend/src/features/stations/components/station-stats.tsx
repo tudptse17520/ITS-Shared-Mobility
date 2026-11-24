@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, CheckCircle2, AlertTriangle, Car } from "lucide-react";
+import { MapPinIcon as MapPin, CheckCircleIcon as CheckCircle2, WarningIcon as AlertTriangle, CarIcon as Car } from "@phosphor-icons/react/ssr";
 
 import { useStations } from "../hooks/use-stations";
 

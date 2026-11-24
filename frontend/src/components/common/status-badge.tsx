@@ -5,13 +5,8 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import {
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  Info,
-  type LucideIcon,
-} from "lucide-react";
+import { CheckCircleIcon as CheckCircle2, ClockIcon as Clock, WarningIcon as AlertTriangle, InfoIcon as Info } from "@phosphor-icons/react/ssr";
+import type { Icon as LucideIcon } from "@phosphor-icons/react";
 
 export type BadgeVariant = "success" | "warning" | "danger" | "info" | "purple" | "cyan" | "default";
 

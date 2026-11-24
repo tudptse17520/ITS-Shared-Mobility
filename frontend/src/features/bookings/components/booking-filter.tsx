@@ -1,7 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { MagnifyingGlassIcon as Search } from "@phosphor-icons/react/ssr";
 import {
   Select,
   SelectContent,

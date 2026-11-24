@@ -5,11 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import DriverLayout from "@/app/(driver)/layout";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   if (pathname.startsWith("/user")) {
@@ -17,17 +13,11 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar - Cố định bên trái, ẩn trên mobile */}
+    <div className="workspace-backdrop grid h-dvh min-h-0 grid-cols-[minmax(0,1fr)] overflow-hidden md:grid-cols-[218px_minmax(0,1fr)] xl:grid-cols-[234px_minmax(0,1fr)]">
       <Sidebar />
-
-      {/* Main Area - Phần còn lại bên phải */}
-      <div className="flex flex-1 flex-col overflow-hidden md:pl-64">
-        {/* Topbar */}
+      <div className="flex min-h-0 min-w-0 flex-col">
         <Topbar />
-
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6">
+        <main key={pathname} id="noi-dung" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
           {children}
         </main>
       </div>

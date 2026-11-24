@@ -7,7 +7,7 @@ import { BookingStatusBadge } from "./booking-status-badge";
 import type { BookingListResponse } from "../types/booking.type";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Eye, XCircle, CheckCircle2, Trash2 } from "lucide-react";
+import { EyeIcon as Eye, XCircleIcon as XCircle, CheckCircleIcon as CheckCircle2, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import {

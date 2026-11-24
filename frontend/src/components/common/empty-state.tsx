@@ -4,7 +4,8 @@
 // ---------------------------------------------
 
 import { cn } from "@/lib/utils";
-import { Inbox, type LucideIcon } from "lucide-react";
+import { TrayIcon as Inbox } from "@phosphor-icons/react/ssr";
+import type { Icon as LucideIcon } from "@phosphor-icons/react";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
