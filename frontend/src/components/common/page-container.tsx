@@ -1,24 +1,8 @@
-// ---------------------------------------------
-// Page Container
-// Thành phần bọc ngoài cùng cho mọi trang trong hệ thống
-// ---------------------------------------------
-
-import React from "react";
 import { cn } from "@/lib/utils";
 
-interface PageContainerProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export function PageContainer({ children, className }: PageContainerProps) {
+export function PageContainer({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={cn(
-        "flex flex-1 flex-col gap-6 p-4 md:p-8 lg:px-10 w-full mx-auto bg-background overflow-y-auto animate-fade-in",
-        className
-      )}
-    >
+    <div className={cn("animate-fade-in flex w-full min-w-0 flex-col gap-5 px-3 py-4 sm:p-5 xl:p-7", className)}>
       {children}
     </div>
   );
