@@ -55,6 +55,7 @@ public class IotSimulationController {
     }
 
     @Operation(summary = "SSE Stream nhận cập nhật vị trí GPS và trạng thái đội xe thời gian thực")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamFleetTelemetry() {
         return sseEmitterManager.subscribe(null);

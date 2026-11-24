@@ -11,32 +11,59 @@ interface VietMapLeafletProps {
   onSelectVehicle: (vehicle: FleetVehicleItem) => void;
 }
 
-const VIETMAP_KEY =
-  process.env.NEXT_PUBLIC_VIETMAP_API_KEY ||
-  "660b3d92e2173b974557cd78118076c8b861dddceb0e8247";
+interface LeafletLayer {
+  addTo: (target: LeafletMap | LeafletLayerGroup) => LeafletLayer;
+  bindPopup: (html: string) => LeafletLayer;
+  on: (event: string, handler: () => void) => LeafletLayer;
+}
+
+interface LeafletLayerGroup {
+  addTo: (map: LeafletMap) => LeafletLayerGroup;
+  clearLayers: () => void;
+}
+
+interface LeafletMap {
+  remove: () => void;
+  setView: (center: [number, number], zoom: number, options?: { animate?: boolean }) => void;
+}
+
+interface LeafletStatic {
+  map: (el: HTMLElement, options: Record<string, unknown>) => LeafletMap;
+  tileLayer: (url: string, options: Record<string, unknown>) => LeafletLayer;
+  layerGroup: () => LeafletLayerGroup;
+  circleMarker: (latLng: [number, number], options: Record<string, unknown>) => LeafletLayer;
+  polyline: (coords: [number, number][], options: Record<string, unknown>) => LeafletLayer;
+}
+
+declare global {
+  interface Window {
+    L?: LeafletStatic;
+  }
+}
+
+const VIETMAP_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY || "";
 
 function getVehicleMarkerColor(status: string): string {
   switch (status) {
     case "AVAILABLE":
-      return "#10b981"; // emerald
+      return "#10b981";
     case "IN_USE":
-      return "#2563eb"; // blue
+      return "#2563eb";
     case "RESERVED":
-      return "#f59e0b"; // amber
+      return "#f59e0b";
     case "LOW_BATTERY":
-      return "#f97316"; // orange
+      return "#f97316";
     case "MAINTENANCE":
-      return "#ef4444"; // red
+      return "#ef4444";
     default:
       return "#64748b";
   }
 }
 
-function loadLeafletAssets(): Promise<any> {
+function loadLeafletAssets(): Promise<LeafletStatic> {
   return new Promise((resolve, reject) => {
-    const win = window as any;
-    if (win.L) {
-      resolve(win.L);
+    if (window.L) {
+      resolve(window.L);
       return;
     }
 
@@ -50,7 +77,10 @@ function loadLeafletAssets(): Promise<any> {
 
     const existingScript = document.getElementById("leaflet-js-cdn") as HTMLScriptElement | null;
     if (existingScript) {
-      existingScript.addEventListener("load", () => resolve((window as any).L));
+      existingScript.addEventListener("load", () => {
+        if (window.L) resolve(window.L);
+        else reject(new Error("Leaflet failed to initialize"));
+      });
       existingScript.addEventListener("error", reject);
       return;
     }
@@ -59,7 +89,10 @@ function loadLeafletAssets(): Promise<any> {
     script.id = "leaflet-js-cdn";
     script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.async = true;
-    script.onload = () => resolve((window as any).L);
+    script.onload = () => {
+      if (window.L) resolve(window.L);
+      else reject(new Error("Leaflet failed to initialize"));
+    };
     script.onerror = (err) => reject(err);
     document.body.appendChild(script);
   });
@@ -73,9 +106,9 @@ export function VietMapLeaflet({
   onSelectVehicle,
 }: VietMapLeafletProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const layerGroupRef = useRef<any>(null);
-  const leafletRef = useRef<any>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const layerGroupRef = useRef<LeafletLayerGroup | null>(null);
+  const leafletRef = useRef<LeafletStatic | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -90,20 +123,20 @@ export function VietMapLeaflet({
       leafletRef.current = L;
 
       const map = L.map(containerRef.current, {
-        center: [10.7945, 106.7125], // Trung tâm Bình Thạnh - Quận 1 TP.HCM
+        center: [10.7945, 106.7125],
         zoom: 14,
         zoomControl: true,
       });
 
-      // Nạp lớp bản đồ VietMap Raster Tile chính thức với API Key
-      L.tileLayer(
-        `https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${VIETMAP_KEY}`,
-        {
-          attribution: "&copy; VietMap ITS Shared Mobility",
-          maxZoom: 20,
-          tileSize: 256,
-        }
-      ).addTo(map);
+      const tileUrl = VIETMAP_KEY
+        ? `https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${VIETMAP_KEY}`
+        : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+      L.tileLayer(tileUrl, {
+        attribution: VIETMAP_KEY ? "&copy; VietMap ITS Shared Mobility" : "&copy; OpenStreetMap contributors",
+        maxZoom: 20,
+        tileSize: 256,
+      }).addTo(map);
 
       const group = L.layerGroup().addTo(map);
       mapRef.current = map;
@@ -118,87 +151,79 @@ export function VietMapLeaflet({
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        layerGroupRef.current = null;
       }
     };
   }, []);
 
   useEffect(() => {
     const L = leafletRef.current;
-    const map = mapRef.current;
     const group = layerGroupRef.current;
-    if (!L || !map || !group) return;
+    const map = mapRef.current;
+    if (!mapReady || !L || !group || !map) return;
 
     group.clearLayers();
 
-    // 1. Vẽ các Trạm xe công cộng (Stations)
     stations.forEach((st) => {
-      const stationIcon = L.divIcon({
-        className: "its-station-pin",
-        html: `<div style="background:#0f172a;color:#fff;border:2px solid #38bdf8;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.35);">Hub · ${st.availableVehicles}/${st.totalDocks}</div>`,
-        iconSize: [110, 24],
-        iconAnchor: [55, 12],
-      });
-
-      L.marker([st.latitude, st.longitude], { icon: stationIcon })
-        .bindPopup(
-          `<div style="font-family:sans-serif;min-width:190px">
-            <strong>${st.stationName}</strong><br/>
-            <span style="color:#64748b;font-size:12px">${st.address}</span><br/>
-            <span style="color:#0284c7;font-weight:600;font-size:12px">Xe sẵn sàng: ${st.availableVehicles} / ${st.totalDocks} chỗ</span>
-          </div>`
-        )
-        .addTo(group);
+      const marker = L.circleMarker([st.latitude, st.longitude], {
+        radius: 10,
+        color: "#4338ca",
+        fillColor: "#6366f1",
+        fillOpacity: 0.35,
+        weight: 2,
+      }).addTo(group);
+      marker.bindPopup(
+        `<b>${st.stationName}</b><br/>${st.address}<br/>Xe sẵn sàng: <b>${st.availableVehicles}</b> / ${st.totalDocks} dock`
+      );
     });
 
-    // 2. Vẽ lộ trình Telemetry (Polyline) nếu có của xe đang chọn
     if (telemetryPath.length > 1) {
-      const latlngs = [...telemetryPath]
+      const coords = [...telemetryPath]
         .reverse()
-        .map((pt) => [pt.latitude, pt.longitude]);
-      L.polyline(latlngs, {
-        color: "#2563eb",
+        .map((pt): [number, number] => [pt.latitude, pt.longitude]);
+      L.polyline(coords, {
+        color: "#0284c7",
         weight: 4,
-        opacity: 0.85,
+        opacity: 0.8,
         dashArray: "6 6",
       }).addTo(group);
     }
 
-    // 3. Vẽ các Phương tiện trong Đội xe (Fleet Vehicles)
     vehicles.forEach((v) => {
-      const color = getVehicleMarkerColor(v.fleetStatus);
       const isSelected = v.id === selectedVehicleId;
-      const border = isSelected ? "3px solid #facc15" : "2px solid #ffffff";
-      const scale = isSelected ? "transform:scale(1.15);" : "";
+      const color = getVehicleMarkerColor(v.fleetStatus);
+      const marker = L.circleMarker([v.latitude, v.longitude], {
+        radius: isSelected ? 10 : 7,
+        color: isSelected ? "#0f172a" : "#ffffff",
+        fillColor: color,
+        fillOpacity: 0.95,
+        weight: isSelected ? 3 : 2,
+      }).addTo(group);
 
-      const vehicleIcon = L.divIcon({
-        className: "its-vehicle-pin",
-        html: `<div style="display:flex;align-items:center;gap:4px;background:${color};color:#fff;border:${border};border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.3);${scale}">
-          <span>${v.vehicleCode}</span>
-          <span style="opacity:.9">${v.batteryLevel}%</span>
-        </div>`,
-        iconSize: [108, 26],
-        iconAnchor: [54, 13],
-      });
-
-      const marker = L.marker([v.latitude, v.longitude], { icon: vehicleIcon })
-        .on("click", () => onSelectVehicle(v))
-        .bindPopup(
-          `<div style="font-family:sans-serif;min-width:200px">
-            <strong>${v.vehicleCode} · ${v.brand}</strong><br/>
-            <span style="font-size:12px;color:#475569">Loại: ${v.vehicleTypeName || "-"}</span><br/>
-            <span style="font-size:12px">Pin: <b>${v.batteryLevel}%</b> · Khóa: <b>${v.lockStatus}</b></span><br/>
-            <span style="font-size:12px">Trạng thái: <b>${v.fleetStatus}</b></span>
-          </div>`
-        );
-
-      marker.addTo(group);
+      marker.on("click", () => onSelectVehicle(v));
+      marker.bindPopup(
+        `<b>${v.vehicleCode}</b> (${v.brand})<br/>Trạng thái: <b>${v.fleetStatus}</b> · Pin: <b>${v.batteryLevel}%</b><br/>Khóa: ${v.lockStatus}`
+      );
     });
   }, [mapReady, stations, vehicles, selectedVehicleId, telemetryPath, onSelectVehicle]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !selectedVehicleId) return;
+    const target = vehicles.find((v) => v.id === selectedVehicleId);
+    if (target) {
+      map.setView([target.latitude, target.longitude], 15, { animate: true });
+    }
+  }, [mapReady, selectedVehicleId, vehicles]);
+
   return (
-    <div
-      ref={containerRef}
-      className="h-[540px] w-full rounded-xl border border-border/50 overflow-hidden z-0"
-    />
+    <div className="relative h-[520px] w-full overflow-hidden rounded-xl border bg-slate-100 dark:bg-slate-900">
+      <div ref={containerRef} className="h-full w-full z-0" />
+      {!mapReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-muted-foreground">
+          Đang tải bản đồ VietMap TP.HCM...
+        </div>
+      )}
+    </div>
   );
 }

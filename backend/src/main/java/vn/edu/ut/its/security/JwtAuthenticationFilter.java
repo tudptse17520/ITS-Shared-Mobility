@@ -38,16 +38,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
+        String jwt = null;
 
-        // Bỏ qua nếu không có header Authorization hợp lệ
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+        } else if (isSseEndpoint(request)) {
+            String queryToken = request.getParameter("token");
+            if (queryToken != null && !queryToken.isBlank()) {
+                jwt = queryToken.trim();
+            }
+        }
+
+        if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        final String username;
         
         try {
             if (jwtUtil.validateToken(jwt)) {
@@ -73,5 +80,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isSseEndpoint(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && (uri.endsWith("/stream") || uri.endsWith("/availability-stream"));
     }
 }

@@ -34,13 +34,13 @@ public class StationController {
     private final SseEmitterManager sseEmitterManager;
 
     @GetMapping("/{id}/availability-stream")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public SseEmitter subscribeToAvailability(@PathVariable Long id) {
         return sseEmitterManager.subscribe(id);
     }
 
     @GetMapping("/availability-stream")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public SseEmitter subscribeToGlobalAvailability() {
         return sseEmitterManager.subscribe(null); // Subscribe to global
     }

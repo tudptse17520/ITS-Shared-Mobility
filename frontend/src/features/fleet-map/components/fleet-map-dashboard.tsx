@@ -34,6 +34,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VietMapLeaflet } from "./vietmap-leaflet";
+import { getCookie } from "@/utils/storage";
+import { getApiErrorMessage } from "@/lib/api-error";
 import {
   mobilityService,
   type FleetVehicleItem,
@@ -70,7 +72,7 @@ export function FleetMapDashboard() {
   const [activeSimSession, setActiveSimSession] = useState<RideSessionItem | null>(null);
   const [isAutoSimulating, setIsAutoSimulating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [sseConnected, setSseConnected] = useState(true);
+  const [sseConnected, setSseConnected] = useState(false);
   const [concurrencyResult, setConcurrencyResult] = useState<{
     total: number;
     success: number;
@@ -80,6 +82,11 @@ export function FleetMapDashboard() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   const simTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const selectedVehicleIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    selectedVehicleIdRef.current = selectedVehicleId;
+  }, [selectedVehicleId]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -89,7 +96,7 @@ export function FleetMapDashboard() {
       ]);
       setStations(stationList);
       setVehicles(vehicleList);
-      if (vehicleList.length > 0 && selectedVehicleId === null) {
+      if (vehicleList.length > 0 && selectedVehicleIdRef.current === null) {
         setSelectedVehicleId(vehicleList[0].id);
       }
     } catch (error) {
@@ -98,15 +105,28 @@ export function FleetMapDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedVehicleId]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    let active = true;
+    const loadInitial = async () => {
+      if (active) {
+        await fetchData();
+      }
+    };
+    void loadInitial();
+    return () => {
+      active = false;
+    };
   }, [fetchData]);
 
-  // Kết nối SSE để nhận tọa độ GPS & % pin realtime
+  // Kết nối SSE để nhận tọa độ GPS & % pin realtime (đính kèm JWT token qua query param)
   useEffect(() => {
-    const eventSource = new EventSource(`${API_BASE}/iot/stream`);
+    const token = getCookie("access_token");
+    if (!token) {
+      return;
+    }
+    const eventSource = new EventSource(`${API_BASE}/iot/stream?token=${encodeURIComponent(token)}`);
     eventSource.onopen = () => setSseConnected(true);
     eventSource.addEventListener("fleet-telemetry", (event) => {
       setSseConnected(true);
@@ -209,8 +229,8 @@ export function FleetMapDashboard() {
       }, 1500);
 
       await fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Không thể bắt đầu mô phỏng chuyến đi (xe cần ở trạng thái AVAILABLE).");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Không thể bắt đầu mô phỏng chuyến đi (xe cần ở trạng thái AVAILABLE)."));
     }
   };
 
@@ -260,8 +280,8 @@ export function FleetMapDashboard() {
       await mobilityService.cancelReservation(selectedVehicle.id);
       toast.success(`Đã mở lại xe ${selectedVehicle.vehicleCode} về AVAILABLE`);
       await fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Không thể hủy giữ xe.");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Không thể hủy giữ xe."));
     }
   };
 

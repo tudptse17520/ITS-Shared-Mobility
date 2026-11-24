@@ -30,7 +30,7 @@ import java.util.List;
  * Cấu hình Spring Security cho hệ thống ITS-Shared-Mobility.
  * - Stateless JWT Authentication.
  * - Bật @EnableMethodSecurity cho phân quyền @PreAuthorize (ADMIN / USER).
- * - Public chỉ cho login/register, Swagger, VNPay IPN/Return và SSE stream.
+ * - Public chỉ cho login/register, Swagger và VNPay IPN/Return; SSE stream yêu cầu JWT (Authorization hoặc ?token=).
  */
 @Configuration
 @EnableWebSecurity
@@ -86,11 +86,6 @@ public class SecurityConfig {
                             .requestMatchers(
                                     "/api/v1/payments/vnpay-ipn",
                                     "/api/v1/payments/vnpay-return"
-                            ).permitAll()
-                            .requestMatchers(
-                                    "/api/v1/iot/stream",
-                                    "/api/v1/stations/availability-stream",
-                                    "/api/v1/stations/*/availability-stream"
                             ).permitAll();
 
                     if (requireAuth) {
