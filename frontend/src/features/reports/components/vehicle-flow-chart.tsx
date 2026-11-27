@@ -58,7 +58,7 @@ export function VehicleFlowChart({ filter }: VehicleFlowChartProps) {
     if (name && name.includes("-")) {
       try {
         name = format(parseISO(name), "dd MMM", { locale: vi });
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

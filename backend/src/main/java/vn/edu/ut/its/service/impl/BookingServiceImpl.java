@@ -27,6 +27,7 @@ import vn.edu.ut.its.repository.BookingRepository;
 import vn.edu.ut.its.repository.StationDockRepository;
 import vn.edu.ut.its.repository.UserRepository;
 import vn.edu.ut.its.repository.VehicleRepository;
+import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.BookingService;
 import vn.edu.ut.its.service.DockAvailabilityService;
 
@@ -42,21 +43,12 @@ public class BookingServiceImpl implements BookingService {
     private final DockAvailabilityService dockAvailabilityService;
 
     private User resolveUser(Long explicitUserId) {
-        if (explicitUserId != null && explicitUserId > 0 && userRepository.existsById(explicitUserId)) {
-            return userRepository.findById(explicitUserId).get();
-        }
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User u) {
-            return userRepository.findById(u.getId()).orElse(u);
-        }
-        return userRepository.findByUsername("user")
-                .orElseGet(() -> userRepository.findAll().stream().findFirst()
-                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản người dùng hợp lệ.")));
+        return SecurityUtils.resolveAuthorizedUser(explicitUserId, userRepository);
     }
 
     @Override
     public BookingResponseDTO createBooking(BookingRequestDTO request) {
-        // 1. Validate User from JWT or fallback to default customer user
+        // 1. Validate User from JWT
         User user = resolveUser(null);
 
         // 2. Validate Vehicle
@@ -65,11 +57,11 @@ public class BookingServiceImpl implements BookingService {
 
         // 3. Validate Station Dock
         StationDock dock = stationDockRepository.findById(request.getStationDockId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vị trí đỗ với ID: " + request.getStationDockId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vị trí dock trạm với ID: " + request.getStationDockId()));
 
         // Check dock availability
         if (dock.getStatus() != StationDockStatus.AVAILABLE) {
-            throw new BusinessRuleViolationException("Vị trí đỗ '" + dock.getDockName() + "' hiện tại không khả dụng để đặt chỗ.");
+            throw new BusinessRuleViolationException("Vị trí dock trạm '" + dock.getDockName() + "' hiện tại không khả dụng để đặt giữ.");
         }
 
         // 4. Parse Dates
@@ -125,6 +117,11 @@ public class BookingServiceImpl implements BookingService {
     public void cancelBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đặt chỗ với ID: " + bookingId));
+
+        SecurityUtils.assertAdminOrOwner(
+                booking.getUser() != null ? booking.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền hủy lượt đặt giữ của người dùng khác.");
 
         if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new BusinessRuleViolationException("Chỉ có thể hủy đặt chỗ khi đang ở trạng thái PENDING hoặc CONFIRMED.");

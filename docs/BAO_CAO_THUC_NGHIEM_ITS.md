@@ -1,71 +1,52 @@
-# Kiến trúc và kiểm thử ITS-Shared-Mobility
+# Kiến trúc và Kết quả Thực nghiệm ITS-Shared-Mobility
 
-Tài liệu tổng hợp kiến trúc, giải pháp kỹ thuật và kết quả kiểm thử của **ITS-Shared-Mobility** cho các chương 2–4 của tiểu luận.
+Tài liệu tổng hợp kiến trúc kỹ thuật, kiểm soát bảo mật, tối ưu truy vấn và kết quả kiểm thử tự động & E2E của **ITS-Shared-Mobility**.
 
 ---
 
-## 1. Các Endpoint API Cốt lõi (Chương 3.1 & 3.4)
+## 1. Kiến trúc 3 tầng & Các Endpoint API Cốt lõi
 
-### 1.1. Xác thực & Tài khoản (`/api/v1/auth`)
-- `POST /api/v1/auth/register`: Đăng ký tài khoản khách thuê mới, băm mật khẩu bằng BCrypt và cấp JWT.
-- `POST /api/v1/auth/login`: Đăng nhập và cấp JWT token.
+### 1.1. Xác thực, Phân quyền & Bảo mật (`backend/`)
+- `POST /api/v1/auth/register`: Đăng ký tài khoản khách thuê mới, băm mật khẩu BCrypt, luôn gán quyền `USER` ở phía server và cấp JWT.
+- `POST /api/v1/auth/login`: Đăng nhập và cấp Bearer JWT token.
 - `GET /api/v1/auth/me`: Lấy thông tin phiên đăng nhập hiện tại.
+- **Bảo mật luồng SSE Realtime**: Các endpoint SSE (`/api/v1/iot/stream`, `/api/v1/stations/availability-stream`, `/api/v1/stations/{id}/availability-stream`) yêu cầu xác thực JWT (qua header `Authorization` hoặc tham số `?token=` cho `EventSource`) khi `app.security.require-auth=true`, đồng thời gửi nhịp tim `: keepalive` mỗi **25 giây** qua `SseEmitterManager`.
+- **Quản lý bí mật & cấu hình**: Loại bỏ toàn bộ API key VietMap / Maps / VNPay `hash-secret` cứng khỏi mã nguồn và Gradle; cung cấp các mẫu `.env.example`, `local.properties.example`.
 
-### 1.2. Nghiệp vụ Shared Mobility (`/api/v1/mobility`)
-- `GET /api/v1/mobility/stations`: Danh sách trạm xe công cộng kèm tọa độ GPS và số xe khả dụng.
-- `GET /api/v1/mobility/vehicles/nearby?lat=...&lng=...&radiusKm=...`: Tìm xe gần vị trí người dùng nhất theo công thức địa lý **Haversine**.
-- `POST /api/v1/mobility/reserve`: Đặt giữ xe với thời hạn mặc định 15 phút (áp dụng **Pessimistic Write Lock** trên bảng `vehicle`).
-- `POST /api/v1/mobility/rides/start`: Quét mã QR (`vehicleCode`) mở khóa xe và khởi tạo chuyến đi (`RideSession`).
-- `POST /api/v1/mobility/rides/{sessionId}/end`: Khóa xe, kết thúc chuyến đi, gán trạm gần nhất và tính tổng cước phí theo `PricingPolicy` (Phí mở khóa + Cước theo thời gian + Phụ phí quãng đường).
+### 1.2. Nghiệp vụ Shared Mobility & Cấu hình động (`/api/v1/mobility`, `/api/v1/configurations`)
+- `GET /api/v1/mobility/stations`: Danh sách trạm xe kèm số dock khả dụng (truy vấn gộp `GROUP BY`, không phát sinh N+1).
+- `GET /api/v1/mobility/vehicles/nearby?lat=...&lng=...&radiusKm=...`: Tìm xe lân cận theo công thức **Haversine**; đọc bán kính mặc định (`SEARCH_RADIUS_KM`) và chính sách giá hiện hành theo batch.
+- `POST /api/v1/mobility/reserve`: Đặt giữ xe với **Pessimistic Write Lock** (`SELECT ... WITH (UPDLOCK, ROWLOCK)`), thời hạn giữ lấy trực tiếp từ `SystemConfig` (`HOLD_DURATION_MINUTES`).
+- `POST /api/v1/mobility/rides/start`: Quét mã QR (`vehicleCode`) mở khóa xe và khởi tạo `RideSession`.
+- `POST /api/v1/mobility/rides/{sessionId}/end`: Khóa xe, gán trạm trả gần nhất và tính tổng cước phí theo `PricingPolicy` kết hợp hệ số cước quãng đường (`DISTANCE_RATE_PER_KM`) từ `SystemConfig`.
+- `PUT /api/v1/configurations/{id}`: Cập nhật tham số hệ thống với kiểm tra ràng buộc miền giá trị cho từng key (`HOLD_DURATION_MINUTES`, `LOW_BATTERY_THRESHOLD`, `DISTANCE_RATE_PER_KM`, `SEARCH_RADIUS_KM`) — trả về `400 Bad Request` nếu vượt ngưỡng hợp lệ và `404 Not Found` nếu không tồn tại.
 
-### 1.3. Giải pháp Mô phỏng IoT trong ITS (`/api/v1/iot`)
-- `POST /api/v1/iot/telemetry`: Tiếp nhận bản tin telemetry giả lập (`latitude`, `longitude`, `batteryLevel`, `speedKmh`, `lockStatus`), lưu vào `vehicle_telemetry_log`, cộng dồn quãng đường Haversine và phát sự kiện realtime.
-- `POST /api/v1/iot/simulate-step/{sessionId}`: Giả lập 1 bước xe di chuyển thực tế (~250–400m) và tiêu hao 1–2% pin.
-- `POST /api/v1/iot/vehicles/{vehicleId}/control`: Điều khiển từ xa (`UNLOCK`, `LOCK`, `RECHARGE_100`, `MAINTENANCE`, `SET_AVAILABLE`).
-- `GET /api/v1/iot/stream`: Kênh **Server-Sent Events (SSE)** đẩy cập nhật vị trí GPS và dung lượng pin về Web Admin theo thời gian thực.
-
----
-
-## 2. Kết quả Thực nghiệm Concurrency Control (Chương 4 & 5)
-
-### Mục tiêu kiểm thử
-Đánh giá tính toàn vẹn dữ liệu khi có nhiều người dùng đồng thời (Concurrent Users) cùng cạnh tranh đặt thuê cùng một chiếc xe (`ITS-EB-001`), đảm bảo không xảy ra hiện tượng **Double Booking**.
-
-### Cơ chế xử lý
-- Sử dụng `@Lock(LockModeType.PESSIMISTIC_WRITE)` trong `VehicleRepository.findByIdForUpdate(id)` (tương ứng `SELECT ... WITH (UPDLOCK, ROWLOCK)` trên Microsoft SQL Server) kết hợp kiểm tra trạng thái nguyên tử bên trong `@Transactional`.
-
-### Kiểm thử đặt giữ xe đồng thời
-- **Kịch bản 1 — JUnit 5 + Spring Boot Test (`ConcurrencyReservationTest`)**:
-  - **Công cụ**: `ExecutorService` + `CountDownLatch` 50 luồng song song.
-  - **Đối tượng kiểm thử**: Phương tiện `ITS-EB-001`.
-  - **Kết quả đo được**:
-    - Tổng số yêu cầu gửi đồng thời: **50 requests**
-    - Số yêu cầu đặt giữ thành công: **1 yêu cầu**
-    - Số yêu cầu bị từ chối: **49 yêu cầu**
-    - Trạng thái cuối cùng của xe trong CSDL: **`RESERVED`**
-- **Kịch bản HTTP trong báo cáo trước — 20 yêu cầu đồng thời qua TCP (`POST /api/v1/mobility/reserve`)**:
-  - **Đối tượng kiểm thử**: Phương tiện `ITS-EB-001`.
-  - **Kết quả đo được**:
-    - Tổng số yêu cầu HTTP gửi đồng thời: **20 requests**
-    - Số yêu cầu thành công (`HTTP 200 OK`): **1 request**
-    - Số yêu cầu bị chặn (`HTTP 409 Conflict`): **19 requests** (không phát sinh lỗi `500`)
-    - Tổng thời gian hoàn tất 20 HTTP requests: **79 ms**
+### 1.3. Giải pháp Mô phỏng IoT & Báo cáo (`/api/v1/iot`, `/api/v1/reports`)
+- `POST /api/v1/iot/telemetry`: Tiếp nhận bản tin telemetry GPS/pin/trạng thái khóa, áp dụng ngưỡng cảnh báo pin yếu động (`LOW_BATTERY_THRESHOLD`) và phát sự kiện SSE `fleet-telemetry`.
+- `POST /api/v1/iot/simulate-step/{sessionId}`: Giả lập di chuyển GPS và cập nhật pin.
+- `GET /api/v1/reports/*`: Thống kê doanh thu, lưu lượng chuyến đi và công suất trạm bằng truy vấn SQL có chặn khoảng thời gian half-open `[startOfDay, nextDayStartOfDay)` và loại trừ bút toán `HISTORICAL_ADJUSTMENT`.
+- **JPA Session Boundary**: Tắt `spring.jpa.open-in-view=false`; toàn bộ mapping DTO thực hiện trong ranh giới `@Transactional`.
 
 ---
 
-## 3. Bảng Tổng hợp Kết quả Kiểm thử Tích hợp End-to-End (E2E Test Matrix)
+## 2. Kết quả Thực nghiệm Concurrency Control (Chống Double-Booking)
 
-TC-01 đến TC-07 ghi lại kết quả từ đợt demo trước. Các kịch bản này chưa được chạy lại đầy đủ trên bản tích hợp hiện tại.
+- **Cơ chế**: `@Lock(LockModeType.PESSIMISTIC_WRITE)` trong `VehicleRepository.findByIdForUpdate(id)` kết hợp kiểm tra trạng thái nguyên tử bên trong `@Transactional`.
+- **Kiểm thử JUnit 5 + Spring Boot Test (`ConcurrencyReservationTest`)**:
+  - `ExecutorService` + `CountDownLatch` mô phỏng **50 luồng song song** đặt giữ cùng 1 xe trên Microsoft SQL Server 2022.
+  - Kết quả xác nhận: chỉ **1 yêu cầu thành công**, **49 yêu cầu bị từ chối**, trạng thái cuối của xe trong DB là **`RESERVED`**.
 
-| Mã TC | Nhóm tính năng | Endpoint / Thành phần kiểm thử | Kết quả thực tế ghi nhận | Đánh giá |
-| :--- | :--- | :--- | :--- | :---: |
-| **TC-01** | Đăng nhập, đăng ký và lấy hồ sơ bằng JWT | `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `GET /api/v1/auth/me` | Đăng nhập `admin` (`Role=ADMIN`), đăng ký tài khoản mới (`Role=USER`), truy xuất hồ sơ qua Bearer JWT thành công (`200 OK`). | **PASS** |
-| **TC-02** | Trạm xe & Tìm xe gần nhất (Haversine) | `GET /api/v1/mobility/stations`, `GET /api/v1/mobility/vehicles/nearby` | Trả về đủ **6 trạm** tại TP.HCM và **16 phương tiện**; lọc bán kính 5km quanh chợ Bến Thành (`onlyAvailable=true`) trả về **12 xe** sắp xếp tăng dần theo khoảng cách (`582.9 m`, `893.2 m`...). | **PASS** |
-| **TC-03** | Đặt giữ xe & Chống Double-Booking | `POST /api/v1/mobility/reserve`, `POST /api/v1/mobility/vehicles/{id}/cancel-reserve` | Request đầu tiên tạo Booking `CONFIRMED` (`200 OK`); request thứ 2 đặt trùng cùng xe bị chặn ngay với **`409 Conflict`**; hủy giữ xe khôi phục trạng thái `AVAILABLE`. | **PASS** |
-| **TC-04** | Vòng đời Chuyến đi & Tính cước tự động | `POST /rides/start`, `GET /rides/active`, `POST /iot/simulate-step/{id}`, `POST /rides/{id}/end`, `GET /rides/history` | Mở khóa QR (`UNLOCKED`, `IN_PROGRESS`) → mô phỏng 2 bước di chuyển GPS (`0.48 km`, pin giảm còn `96%`, tạm tính `16.210 VNĐ`) → khóa xe tại trạm trả (`LOCKED`, tổng quãng đường `3.99 km`, tổng cước `23.230 VNĐ`, trạng thái `AWAITING_PAYMENT`). | **PASS** |
-| **TC-05** | Công nợ & Cổng thanh toán VNPay Sandbox | `GET /api/v1/payments/ride-sessions/{id}/debt`, `POST /api/v1/payments` | Tra cứu đúng công nợ (`23.230 VNĐ`), khởi tạo giao dịch `Vnpay` (`PENDING`) sinh URL `sandbox.vnpayment.vn` kèm chữ ký `vnp_SecureHash` hợp lệ. | **PASS** |
-| **TC-06** | IoT Telemetry, Cảnh báo Pin yếu & Điều khiển từ xa | `POST /api/v1/iot/telemetry`, `POST /api/v1/iot/vehicles/{id}/control`, `GET /api/v1/iot/telemetry/{id}` | Gửi gói tin pin `12%` tự động chuyển trạng thái xe sang **`LOW_BATTERY`**; gửi lệnh điều khiển từ xa `RECHARGE_100` sạc đầy `100%` và khôi phục **`AVAILABLE`**; lưu đầy đủ lịch sử telemetry. | **PASS** |
-| **TC-07** | Luồng dữ liệu Thời gian thực (SSE) | `GET /api/v1/iot/stream` | Kết nối SSE nhận tức thời sự kiện `event:fleet-telemetry` kèm JSON tọa độ GPS, `% pin`, `lockStatus`, `fleetStatus` khi trạng thái xe thay đổi. | **PASS** |
-| **TC-08** | Giao diện Web Admin và Android | Trang bản đồ đội xe, quản lý đặt giữ xe, phản ánh và bản demo Android | Bản web tích hợp build được với các trang xác thực, quản lý trạm và báo cáo. Chưa chạy lại toàn bộ luồng web trên trình duyệt hoặc build lại APK. Video Android nằm trong `docs/recordings`. | **Đạt bước build web** |
+---
 
+## 3. Ma trận Kiểm thử Tích hợp & Hồi quy
 
+| Nhóm kiểm thử | Bộ test / Công cụ | Phạm vi xác minh |
+| :--- | :--- | :--- |
+| **Database Schema & Context** | Spring Data JPA / Hibernate (`ddl-auto=update`, `open-in-view=false`) + `ItsSharedMobilityApplicationTests` + `DemoSeedDisabledTest` | Tạo mới schema từ DB rỗng sạch và khởi chạy khi `ITS_DEMO_SEED=false` không lỗi. |
+| **Concurrency Lock** | `ConcurrencyReservationTest` | 50 luồng đồng thời đặt 1 xe -> đúng 1 thành công, 49 thất bại, xe ở trạng thái `RESERVED`. |
+| **Ride Lifecycle & VNPay** | `RideLifecycleTest` | Giữ xe -> mở khóa QR -> mô phỏng IoT GPS -> kết thúc chuyến -> tính cước -> khởi tạo giao dịch VNPay. |
+| **Security & RBAC Audit** | `SecurityAndWorkflowAuditTest` | Xác thực JWT, bảo vệ endpoint nhạy cảm, chặn thao tác sai quyền, kiểm tra ràng buộc `PricingPolicy` & `Feedback`. |
+| **Post-Audit Regression** | `PostAuditImprovementsTest` | Kiểm tra `SystemConfig` có hiệu lực runtime (`HOLD_DURATION_MINUTES`, `LOW_BATTERY_THRESHOLD`, `DISTANCE_RATE_PER_KM`), validation `400`/`404`, SSE `401` khi thiếu token & `200` với `?token=`, biên thời gian báo cáo `23:59:59.500`, và tương thích `open-in-view=false`. |
+| **Web Admin (`frontend/`)** | `npx tsc --noEmit`, `npm run lint`, `npm run build` + E2E trình duyệt | Next.js 16 `proxy.ts`, 0 lỗi/cảnh báo ESLint, Skeleton khi hydrate user, kết nối SSE có `?token=`. |
+| **Mobile Android (`mobile-android/`)** | `./gradlew :app:testDebugUnitTest :app:assembleDebug` | Unit test parser QR & DTO models (`QrAndModelTest`), lưu phiên JWT `SessionManager`, tự đăng xuất khi HTTP `401`, fallback GPS & gửi báo cáo sự cố. |
+| **CI/CD Pipeline** | `.github/workflows/ci.yml` | Tự động chạy `web`, `backend` (SQL Server 2022 container) và `android` trên push/PR. |

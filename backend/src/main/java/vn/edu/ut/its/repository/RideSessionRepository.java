@@ -27,4 +27,30 @@ public interface RideSessionRepository extends JpaRepository<RideSession, Long> 
     java.util.List<RideSession> findByUser_IdOrderByStartedAtDesc(Long userId);
 
     java.util.Optional<RideSession> findFirstByUser_IdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(Long userId, RideSessionStatus status);
+
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT DISTINCT r FROM RideSession r
+            LEFT JOIN FETCH r.vehicle v
+            LEFT JOIN FETCH v.vehicleType
+            LEFT JOIN FETCH r.stationDock sd
+            LEFT JOIN FETCH sd.stationZone sz
+            LEFT JOIN FETCH sz.vehicleType
+            WHERE (r.startedAt >= :start AND r.startedAt < :exclusiveEnd)
+               OR (r.endedAt IS NOT NULL AND r.endedAt >= :start AND r.endedAt < :exclusiveEnd)
+            """)
+    java.util.List<RideSession> findOverlappingPeriod(
+            @org.springframework.data.repository.query.Param("start") java.time.LocalDateTime start,
+            @org.springframework.data.repository.query.Param("exclusiveEnd") java.time.LocalDateTime exclusiveEnd);
+
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT r FROM RideSession r
+            LEFT JOIN FETCH r.vehicle v
+            LEFT JOIN FETCH v.vehicleType
+            LEFT JOIN FETCH r.stationDock sd
+            LEFT JOIN FETCH sd.stationZone sz
+            LEFT JOIN FETCH sz.vehicleType
+            WHERE r.status = :status AND r.endedAt IS NULL
+            """)
+    java.util.List<RideSession> findActiveByStatusWithVehicle(
+            @org.springframework.data.repository.query.Param("status") RideSessionStatus status);
 }

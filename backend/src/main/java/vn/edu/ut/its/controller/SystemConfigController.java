@@ -3,6 +3,7 @@ package vn.edu.ut.its.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import vn.edu.ut.its.dto.request.SystemConfigRequest;
@@ -17,6 +18,7 @@ import vn.edu.ut.its.service.SystemConfigService;
 @RequestMapping("/api/v1/configurations")
 @RequiredArgsConstructor
 @CrossOrigin
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "System Configuration")
 public class SystemConfigController {
 

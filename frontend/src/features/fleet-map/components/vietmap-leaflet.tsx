@@ -13,9 +13,47 @@ interface VietMapLeafletProps {
   onSelectVehicle: (vehicle: FleetVehicleItem) => void;
 }
 
-const VIETMAP_KEY =
-  process.env.NEXT_PUBLIC_VIETMAP_API_KEY ||
-  "660b3d92e2173b974557cd78118076c8b861dddceb0e8247";
+interface LeafletLayer {
+  addTo: (target: LeafletMap | LeafletLayerGroup) => LeafletLayer;
+  bindPopup: (html: string | HTMLElement, options?: Record<string, unknown>) => LeafletLayer;
+  on: (event: string, handler: () => void) => LeafletLayer;
+}
+
+interface LeafletLayerGroup {
+  addTo: (map: LeafletMap) => LeafletLayerGroup;
+  clearLayers: () => void;
+}
+
+interface LeafletPoint {
+  distanceTo: (other: LeafletPoint) => number;
+}
+
+interface LeafletMap {
+  remove: () => void;
+  setView: (center: [number, number], zoom: number, options?: { animate?: boolean }) => void;
+  invalidateSize: (options?: { pan?: boolean }) => void;
+  project: (latLng: [number, number]) => LeafletPoint;
+  on: (event: string, handler: () => void) => void;
+  off: (event: string, handler: () => void) => void;
+}
+
+interface LeafletStatic {
+  map: (el: HTMLElement, options: Record<string, unknown>) => LeafletMap;
+  tileLayer: (url: string, options: Record<string, unknown>) => LeafletLayer;
+  layerGroup: () => LeafletLayerGroup;
+  circleMarker: (latLng: [number, number], options: Record<string, unknown>) => LeafletLayer;
+  marker: (latLng: [number, number], options: Record<string, unknown>) => LeafletLayer;
+  divIcon: (options: Record<string, unknown>) => unknown;
+  polyline: (coords: [number, number][], options: Record<string, unknown>) => LeafletLayer;
+}
+
+declare global {
+  interface Window {
+    L?: LeafletStatic;
+  }
+}
+
+const VIETMAP_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY || "";
 
 function getVehicleMarkerColor(status: string): string {
   switch (status) {
@@ -34,11 +72,10 @@ function getVehicleMarkerColor(status: string): string {
   }
 }
 
-function loadLeafletAssets(): Promise<any> {
+function loadLeafletAssets(): Promise<LeafletStatic> {
   return new Promise((resolve, reject) => {
-    const win = window as any;
-    if (win.L) {
-      resolve(win.L);
+    if (window.L) {
+      resolve(window.L);
       return;
     }
 
@@ -52,7 +89,10 @@ function loadLeafletAssets(): Promise<any> {
 
     const existingScript = document.getElementById("leaflet-js-cdn") as HTMLScriptElement | null;
     if (existingScript) {
-      existingScript.addEventListener("load", () => resolve((window as any).L));
+      existingScript.addEventListener("load", () => {
+        if (window.L) resolve(window.L);
+        else reject(new Error("Leaflet failed to initialize"));
+      });
       existingScript.addEventListener("error", reject);
       return;
     }
@@ -61,7 +101,10 @@ function loadLeafletAssets(): Promise<any> {
     script.id = "leaflet-js-cdn";
     script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.async = true;
-    script.onload = () => resolve((window as any).L);
+    script.onload = () => {
+      if (window.L) resolve(window.L);
+      else reject(new Error("Leaflet failed to initialize"));
+    };
     script.onerror = (err) => reject(err);
     document.body.appendChild(script);
   });
@@ -78,9 +121,9 @@ export function VietMapLeaflet({
   onSelectVehicle,
 }: VietMapLeafletProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const layerGroupRef = useRef<any>(null);
-  const leafletRef = useRef<any>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const layerGroupRef = useRef<LeafletLayerGroup | null>(null);
+  const leafletRef = useRef<LeafletStatic | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
 
@@ -99,22 +142,22 @@ export function VietMapLeaflet({
 
       const prefersLessMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const map = L.map(containerRef.current, {
-        center: [10.7945, 106.7125], // Trung tâm Bình Thạnh - Quận 1 TP.HCM
+        center: [10.7945, 106.7125],
         zoom: 14,
         zoomControl: true,
         zoomAnimation: !prefersLessMotion,
         fadeAnimation: !prefersLessMotion,
       });
 
-      // Nạp lớp bản đồ VietMap Raster Tile chính thức với API Key
-      L.tileLayer(
-        `https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${VIETMAP_KEY}`,
-        {
-          attribution: "&copy; VietMap ITS Shared Mobility",
-          maxZoom: 20,
-          tileSize: 256,
-        }
-      ).addTo(map);
+      const tileUrl = VIETMAP_KEY
+        ? `https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${VIETMAP_KEY}`
+        : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+      L.tileLayer(tileUrl, {
+        attribution: VIETMAP_KEY ? "&copy; VietMap ITS Shared Mobility" : "&copy; OpenStreetMap contributors",
+        maxZoom: 20,
+        tileSize: 256,
+      }).addTo(map);
 
       const group = L.layerGroup().addTo(map);
       mapRef.current = map;
@@ -132,15 +175,19 @@ export function VietMapLeaflet({
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        layerGroupRef.current = null;
       }
     };
   }, []);
 
-useEffect(() => {
-    const L = leafletRef.current;
-    const map = mapRef.current;
-    const layer = layerGroupRef.current;
-    if (!mapReady || !L || !map || !layer) return;
+  useEffect(() => {
+    const maybeL = leafletRef.current;
+    const maybeMap = mapRef.current;
+    const maybeLayer = layerGroupRef.current;
+    if (!mapReady || !maybeL || !maybeMap || !maybeLayer) return;
+    const L = maybeL;
+    const map = maybeMap;
+    const layer = maybeLayer;
 
     type MapItem = {
       location: [number, number];
@@ -163,7 +210,7 @@ useEffect(() => {
       })),
     ];
 
-    function draw() {
+    const draw = () => {
       layer.clearLayers();
       if (telemetryPath.length > 1) {
         L.polyline([...telemetryPath].reverse().map((point) => [point.latitude, point.longitude]), {
@@ -218,12 +265,21 @@ useEffect(() => {
           title: markerTitle, alt: markerTitle, zIndexOffset: selected ? 1000 : 0,
         }).bindPopup(popup, { maxWidth: 250 }).addTo(layer);
       }
-    }
+    };
 
     draw();
     map.on("zoomend", draw);
     return () => { map.off("zoomend", draw); };
   }, [mapReady, stations, vehicles, selectedVehicleId, telemetryPath, onSelectVehicle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !selectedVehicleId) return;
+    const target = vehicles.find((v) => v.id === selectedVehicleId);
+    if (target) {
+      map.setView([target.latitude, target.longitude], 15, { animate: true });
+    }
+  }, [mapReady, selectedVehicleId, vehicles]);
 
   return (
     <div

@@ -22,6 +22,8 @@ import { usePricingPolicyActions } from "@/features/pricing-policies/hooks/use-p
 import { PricingPolicyTable } from "@/features/pricing-policies/components/pricing-policy-table";
 import { PricingPolicyFormDialog } from "@/features/pricing-policies/components/pricing-policy-form-dialog";
 import { PricingPolicyFilter } from "@/features/pricing-policies/components/pricing-policy-filter";
+import type { PricingPolicy } from "@/features/pricing-policies/types/pricing-policy.type";
+import type { VehicleType } from "@/features/vehicle-types/types/vehicle-type.type";
 import { useState } from "react";
 
 export default function PricingPolicyPage() {
@@ -56,9 +58,9 @@ export default function PricingPolicyPage() {
 
   // Ánh xạ tên loại xe vào danh sách bảng giá và tìm kiếm
   const pricingPolicies = React.useMemo(() => {
-    let result = rawPricingPolicies.map((policy: any) => {
+    let result = rawPricingPolicies.map((policy: PricingPolicy & { vehicle_type_id?: number; vehicle_type_name?: string }) => {
       const typeId = policy.vehicleTypeId || policy.vehicle_type_id;
-      const vt = vehicleTypes.find((v: any) => v.id === typeId);
+      const vt = vehicleTypes.find((v: VehicleType) => v.id === typeId);
       return {
         ...policy,
         vehicleTypeName: vt ? vt.typeName : policy.vehicleTypeName || policy.vehicle_type_name
@@ -68,7 +70,7 @@ export default function PricingPolicyPage() {
     if (keyword) {
       const lowerKw = keyword.toLowerCase();
       result = result.filter(
-        (p: any) =>
+        (p) =>
           p.vehicleTypeName?.toLowerCase().includes(lowerKw) ||
           p.id.toString().includes(lowerKw)
       );

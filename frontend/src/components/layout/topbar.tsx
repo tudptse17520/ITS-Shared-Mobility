@@ -12,6 +12,7 @@ import { useThemeStore } from "@/stores/theme.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { ADMIN_NAV } from "@/config/navigation";
 import { removeCookie } from "@/utils/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AdminBrand } from "./brand";
 import { AdminNavigation } from "./sidebar";
 import { ProfileDialog } from "./profile-dialog";
@@ -22,6 +23,7 @@ export function Topbar() {
   const router = useRouter();
   const clearUser = useAuthStore((state) => state.clearUser);
   const user = useAuthStore((state) => state.user);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const { setTheme } = useThemeStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -66,9 +68,18 @@ export function Topbar() {
 
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="ghost" aria-label={"Tài khoản " + name} className="h-10 gap-2 rounded-xl px-1.5 sm:px-2.5" />}>
-              <Avatar className="size-8"><AvatarFallback className="bg-accent font-semibold text-accent-foreground">{initials}</AvatarFallback></Avatar>
-              <span className="hidden max-w-44 truncate text-sm sm:inline">{name}</span>
-              <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
+              {isHydrated || user ? (
+                <>
+                  <Avatar className="size-8"><AvatarFallback className="bg-accent font-semibold text-accent-foreground">{initials}</AvatarFallback></Avatar>
+                  <span className="hidden max-w-44 truncate text-sm sm:inline">{name}</span>
+                  <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-8 rounded-full" />
+                  <Skeleton className="hidden h-3.5 w-24 sm:block" />
+                </div>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuGroup>

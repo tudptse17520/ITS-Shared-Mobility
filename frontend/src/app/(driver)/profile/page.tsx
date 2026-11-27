@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { useAuthStore } from "@/stores/auth.store";
@@ -11,7 +11,18 @@ import { formatDateTime } from "@/utils/format-date";
 import { formatCurrency } from "@/utils/format-currency";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { EmptyState } from "@/components/common/empty-state";
-import { UserIcon as User, PhoneIcon as Phone, ShieldIcon as Shield, CreditCardIcon as CreditCard, ClockIcon as Clock, CheckCircleIcon as CheckCircle2, XCircleIcon as XCircle, WarningCircleIcon as AlertCircle, WalletIcon as Wallet, ReceiptIcon as Receipt, CarIcon as Car } from "@phosphor-icons/react/ssr";
+import {
+  UserIcon as User,
+  PhoneIcon as Phone,
+  ShieldIcon as Shield,
+  ClockIcon as Clock,
+  CheckCircleIcon as CheckCircle2,
+  XCircleIcon as XCircle,
+  WarningCircleIcon as AlertCircle,
+  WalletIcon as Wallet,
+  ReceiptIcon as Receipt,
+  CarIcon as Car,
+} from "@phosphor-icons/react/ssr";
 
 // ---------------------------------------------------------------------------
 // Profile Info Card

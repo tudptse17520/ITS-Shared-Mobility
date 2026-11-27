@@ -11,9 +11,12 @@ import vn.edu.ut.its.entity.VehicleTelemetryLog;
 import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.RideSessionRepository;
+import vn.edu.ut.its.repository.UserRepository;
 import vn.edu.ut.its.repository.VehicleRepository;
 import vn.edu.ut.its.repository.VehicleTelemetryLogRepository;
+import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.IotSimulationService;
+import vn.edu.ut.its.service.RuntimeConfigProvider;
 import vn.edu.ut.its.service.SharedMobilityService;
 import vn.edu.ut.its.service.SseEmitterManager;
 import vn.edu.ut.its.util.GeoUtils;
@@ -36,6 +39,8 @@ public class IotSimulationServiceImpl implements IotSimulationService {
     private final VehicleRepository vehicleRepository;
     private final RideSessionRepository rideSessionRepository;
     private final VehicleTelemetryLogRepository telemetryLogRepository;
+    private final UserRepository userRepository;
+    private final RuntimeConfigProvider runtimeConfigProvider;
     private final SharedMobilityService sharedMobilityService;
     private final SseEmitterManager sseEmitterManager;
 
@@ -65,7 +70,8 @@ public class IotSimulationServiceImpl implements IotSimulationService {
             vehicle.setLockStatus(request.getLockStatus().trim().toUpperCase());
         }
 
-        if (newBattery < 15 && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
+        int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
+        if (newBattery < lowBatteryThreshold && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
             vehicle.setFleetStatus("LOW_BATTERY");
         }
         vehicleRepository.save(vehicle);
@@ -100,6 +106,11 @@ public class IotSimulationServiceImpl implements IotSimulationService {
     public RideSessionResponseDTO simulateRideStep(Long sessionId) {
         RideSession session = rideSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi ID: " + sessionId));
+
+        SecurityUtils.assertAdminOrOwner(
+                session.getUser() != null ? session.getUser().getId() : null,
+                userRepository,
+                "Bạn không có quyền mô phỏng GPS cho chuyến đi của người dùng khác.");
 
         if (session.getEndedAt() != null) {
             throw new BusinessRuleViolationException("Chuyến đi đã kết thúc, không thể mô phỏng di chuyển tiếp.");
@@ -152,11 +163,12 @@ public class IotSimulationServiceImpl implements IotSimulationService {
                 }
             }
             case "SET_BATTERY" -> {
+                int lowBatteryThreshold = runtimeConfigProvider.getLowBatteryThreshold();
                 int bat = request.getBatteryLevel() != null ? Math.max(0, Math.min(100, request.getBatteryLevel())) : 50;
                 vehicle.setBatteryLevel(bat);
-                if (bat < 15 && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
+                if (bat < lowBatteryThreshold && "AVAILABLE".equalsIgnoreCase(vehicle.getFleetStatus())) {
                     vehicle.setFleetStatus("LOW_BATTERY");
-                } else if (bat >= 20 && "LOW_BATTERY".equalsIgnoreCase(vehicle.getFleetStatus())) {
+                } else if (bat >= lowBatteryThreshold && "LOW_BATTERY".equalsIgnoreCase(vehicle.getFleetStatus())) {
                     vehicle.setFleetStatus("AVAILABLE");
                 }
             }

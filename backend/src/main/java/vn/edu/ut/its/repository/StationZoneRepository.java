@@ -10,7 +10,6 @@ import java.util.List; // Duy Kha đã thêm thư viện này
  */
 @Repository
 public interface StationZoneRepository extends JpaRepository<StationZone, Long> {
-    // Duy Kha đã thêm dòng này
-    // Tối ưu việc tìm kiếm tầng theo tòa nhà
+    // Tối ưu việc tìm kiếm khu trạm theo trạm xe (Station ID)
     List<StationZone> findByStationId(Long stationId);
 }

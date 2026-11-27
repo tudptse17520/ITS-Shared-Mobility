@@ -15,16 +15,16 @@ export const feedbackService = {
   getFeedbacks: async (
     page: number = 1,
     size: number = 10,
-    issueType?: IssueType,
-    status?: FeedbackStatus
+    issueType?: IssueType | "ALL",
+    status?: FeedbackStatus | "ALL"
   ): Promise<PaginatedFeedbackResponse> => {
     const params = new URLSearchParams({
       page: page.toString(),
       size: size.toString(),
     });
     
-    if (issueType && issueType !== "ALL" as any) params.append("issue_type", issueType);
-    if (status && status !== "ALL" as any) params.append("status", status);
+    if (issueType && issueType !== "ALL") params.append("issue_type", issueType);
+    if (status && status !== "ALL") params.append("status", status);
 
     const response = await axiosClient.get(`/feedbacks?${params.toString()}`);
     return response.data;

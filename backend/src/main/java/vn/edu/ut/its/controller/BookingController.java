@@ -45,6 +45,7 @@ public class BookingController {
     }
 
     @Operation(summary = "Xem danh sách toàn bộ lượt đặt giữ (Dành cho Admin)")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/bookings")
     public ResponseEntity<List<BookingListResponseDTO>> getAllBookings() {
         List<BookingListResponseDTO> response = bookingService.getAllBookings();
@@ -66,7 +67,16 @@ public class BookingController {
     public ResponseEntity<BookingListResponseDTO> updateBookingStatus(
             @PathVariable("bookingId") Long bookingId,
             @RequestBody Map<String, String> payload) {
-        BookingStatus status = BookingStatus.valueOf(payload.get("status").trim().toUpperCase());
+        String rawStatus = payload != null ? payload.get("status") : null;
+        if (rawStatus == null || rawStatus.isBlank()) {
+            throw new vn.edu.ut.its.exception.BusinessRuleViolationException("Trạng thái đặt giữ không được để trống.");
+        }
+        BookingStatus status;
+        try {
+            status = BookingStatus.valueOf(rawStatus.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new vn.edu.ut.its.exception.BusinessRuleViolationException("Trạng thái đặt giữ không hợp lệ: " + rawStatus);
+        }
         return ResponseEntity.ok(bookingService.updateBookingStatus(bookingId, status));
     }
 

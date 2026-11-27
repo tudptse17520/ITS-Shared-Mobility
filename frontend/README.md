@@ -11,13 +11,12 @@ frontend/
 │   ├── features/        # Business logic modules (UI local state & components)
 │   ├── hooks/           # Global custom hooks
 │   ├── lib/             # Third-party clients (Axios client, Query client)
-│   ├── mocks/           # Mock data for frontend independent development
 │   ├── providers/       # Global state providers (Query, Theme, Toast, Auth)
 │   ├── services/        # Centralized API layer (Axios endpoints)
 │   ├── stores/          # Global client state (Zustand stores)
 │   ├── types/           # TypeScript types/interfaces matching Backend Entities
 │   └── utils/           # Global helper functions (formatters)
-└── middleware.ts        # Route middleware (demo mode)
+└── src/proxy.ts         # Role-based route guard (JWT cookie)
 ```
 
 ## Web routes

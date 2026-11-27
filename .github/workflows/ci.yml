@@ -1,0 +1,137 @@
+name: ITS-Shared-Mobility CI
+
+on:
+  push:
+    branches: [main, develop, "fix/*", "feat/*"]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web Admin (TypeScript, ESLint, Next.js Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+
+  backend:
+    name: Backend API & Integration Tests (SQL Server 2022)
+    runs-on: ubuntu-latest
+    env:
+      SA_PASSWORD: "ItsCi!Password2026"
+      DB_NAME: "its_ci_test"
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "ItsCi!Password2026"
+          MSSQL_PID: "Express"
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Wait for SQL Server and create CI test database
+        run: |
+          CID=$(docker ps --filter "ancestor=mcr.microsoft.com/mssql/server:2022-latest" --format "{{.ID}}" | head -n 1)
+          if [ -z "$CID" ]; then
+            echo "Could not find running SQL Server container"
+            docker ps -a
+            exit 1
+          fi
+
+          SQLCMD=$(docker exec "$CID" sh -c 'if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then echo /opt/mssql-tools18/bin/sqlcmd; elif [ -x /opt/mssql-tools/bin/sqlcmd ]; then echo /opt/mssql-tools/bin/sqlcmd; fi')
+          if [ -z "$SQLCMD" ]; then
+            echo "sqlcmd not found inside SQL Server container"
+            exit 1
+          fi
+
+          for i in $(seq 1 40); do
+            if docker exec "$CID" "$SQLCMD" -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              docker exec "$CID" "$SQLCMD" -S localhost -U sa -P "$SA_PASSWORD" -C -Q "IF DB_ID('${DB_NAME}') IS NULL CREATE DATABASE [${DB_NAME}];"
+              echo "Created/verified database ${DB_NAME}"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "SQL Server did not become ready in time"
+          docker logs "$CID" | tail -n 50
+          exit 1
+      - name: Run Maven Test Suite
+        working-directory: backend
+        env:
+          DB_URL: "jdbc:sqlserver://localhost:1433;databaseName=its_ci_test;encrypt=true;trustServerCertificate=true"
+          DB_USERNAME: sa
+          DB_PASSWORD: "ItsCi!Password2026"
+          JWT_SECRET: "ci-its-shared-mobility-secret-key-minimum-32-bytes"
+          JWT_EXPIRATION: "86400000"
+          VNPAY_TMN_CODE: "2XKCYOIK"
+          VNPAY_HASH_SECRET: "CI_DUMMY_VNPAY_HASH_SECRET_32_BYTES"
+        run: |
+          chmod +x mvnw
+          ./mvnw test -B
+
+  android:
+    name: Mobile Android (Unit Tests & Debug APK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Verify Android SDK and accept licenses
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT" ]; then
+            echo "Android SDK directory not found: '$SDK_ROOT'"
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" "$SDK_ROOT/tools" -name sdkmanager -type f 2>/dev/null | head -n 1 || true)
+          fi
+          if [ -n "$SDKMANAGER" ] && [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
+            if [ ! -d "$SDK_ROOT/platforms/android-35" ] || [ ! -d "$SDK_ROOT/build-tools/35.0.0" ]; then
+              "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+            fi
+          fi
+      - name: Run unit tests and build Debug APK
+        env:
+          API_BASE_URL: "http://10.0.2.2:8080/api/v1/"
+          VIETMAP_API_KEY: ""
+          MAPS_API_KEY: "MAPS_API_KEY_PLACEHOLDER"
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon

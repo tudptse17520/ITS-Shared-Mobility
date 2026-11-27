@@ -114,6 +114,7 @@ public class PaymentController {
      * @return HTTP 200 OK with updated payment
      */
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PaymentResponseDTO> updatePaymentStatus(
             @PathVariable Long id,
             @Valid @RequestBody ManualStatusRequestDTO requestDTO) {

@@ -1,7 +1,5 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { AxiosError } from "axios";
-import { ApiErrorResponse } from "@/types/api";
 import { VehicleType } from "@/features/vehicle-types/types/vehicle-type.type";
 import { VehicleTypeFormValues } from "@/features/vehicle-types/schemas/vehicle-type.schema";
 import {

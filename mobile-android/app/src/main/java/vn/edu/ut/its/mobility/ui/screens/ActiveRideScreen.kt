@@ -8,7 +8,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +33,7 @@ fun ActiveRideScreen(
 ) {
     val colors = MaterialTheme.colorScheme
     val vndFormat = remember { NumberFormat.getNumberInstance(Locale("vi", "VN")) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -102,7 +106,10 @@ fun ActiveRideScreen(
                 val startLng = ride.startLongitude ?: ride.currentLongitude ?: 106.7166
                 val curLat = ride.currentLatitude ?: startLat
                 val curLng = ride.currentLongitude ?: startLng
-                val mapHtml = remember(startLat, startLng, curLat, curLng, ride.vehicleCode) {
+                val vietmapLayerScript = if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+                    "L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', { maxZoom: 20, tileSize: 256 }).addTo(map);"
+                } else ""
+                val mapHtml = remember(startLat, startLng, curLat, curLng, ride.vehicleCode, vietmapLayerScript) {
                     """
                     <!DOCTYPE html>
                     <html>
@@ -122,9 +129,7 @@ fun ActiveRideScreen(
                           if (typeof L === 'undefined') return;
                           var map = L.map('map', { zoomControl: false }).setView([$curLat, $curLng], 15);
                           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-                          L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
-                            maxZoom: 20, tileSize: 256
-                          }).addTo(map);
+                          $vietmapLayerScript
                           L.polyline([[$startLat, $startLng], [$curLat, $curLng]], {
                             color: '#ac6840', weight: 4, dashArray: '6 6'
                           }).addTo(map);
@@ -211,6 +216,17 @@ fun ActiveRideScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("Thử di chuyển 300 m")
             }
+            // Nút báo cáo sự cố chuyến đi
+            TextButton(
+                onClick = { showFeedbackDialog = true },
+                enabled = !viewModel.isLoading,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Icon(Icons.Outlined.ReportProblem, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Báo cáo sự cố chuyến đi")
+            }
+
             ItsButton(
                 onClick = { viewModel.endCurrentRide() },
                 enabled = !viewModel.isLoading,
@@ -221,6 +237,22 @@ fun ActiveRideScreen(
                 Text("Kết thúc chuyến")
             }
         }
+    }
+
+    if (showFeedbackDialog) {
+        ReportIssueDialog(
+            ride = ride,
+            isSubmitting = viewModel.isLoading,
+            onDismiss = { showFeedbackDialog = false },
+            onSubmit = { issueType, description ->
+                viewModel.submitRideFeedback(
+                    rideSessionId = ride.sessionId,
+                    issueType = issueType,
+                    description = description,
+                    onSuccess = { showFeedbackDialog = false }
+                )
+            }
+        )
     }
 }
 

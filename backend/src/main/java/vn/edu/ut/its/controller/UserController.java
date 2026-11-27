@@ -40,7 +40,7 @@ public class UserController {
      * Retrieve users with optional keyword search and role filter.
      *
      * @param keyword optional partial text to search by fullName or phoneNumber
-     * @param role    optional role filter (ADMIN, MANAGER, STAFF, USER)
+     * @param role    optional role filter (ADMIN, USER)
      * @return HTTP 200 with UserListResponse
      */
     @GetMapping

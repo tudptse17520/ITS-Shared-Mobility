@@ -160,7 +160,7 @@ public class DataSeeder implements CommandLineRunner {
                         .status(StationStatus.ACTIVE).build()
         ));
 
-        // Tạo 1 tầng & dock mẫu cho mỗi trạm để tương thích ngược với các màn hình ITS cũ
+        // Tạo 1 khu & dock mẫu cho mỗi trạm để hiển thị hạ tầng trạm xe
         List<StationZone> stationZones = new ArrayList<>();
         for (Station st : stations) {
             stationZones.add(StationZone.builder()

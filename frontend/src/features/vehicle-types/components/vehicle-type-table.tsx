@@ -55,7 +55,7 @@ export function VehicleTypeTable({
       },
       {
         accessorKey: "activeSessionsCount",
-        header: "Đang đỗ (xe)",
+        header: "Đang thuê / giữ (xe)",
         cell: ({ row }) => {
           const count = row.original.activeSessionsCount || 0;
           return (

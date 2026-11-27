@@ -55,5 +55,8 @@ interface ItsApiService {
 
     @POST("payments")
     suspend fun createPayment(@Body request: PaymentRequestDto): Response<PaymentResponseDto>
+
+    @POST("feedbacks")
+    suspend fun createFeedback(@Body request: FeedbackRequestDto): Response<FeedbackResponseDto>
 }
 

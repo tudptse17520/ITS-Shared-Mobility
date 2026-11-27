@@ -9,8 +9,9 @@ import { XIcon as X, FloppyDiskIcon as Save, ShieldWarningIcon as ShieldAlert } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FormContainer, FormHeader, FormFields, FormActions } from "@/components/common/form-container";
+import { FormContainer, FormHeader, FormFields } from "@/components/common/form-container";
 import { Portal } from "@/components/common/portal";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 import { SystemConfig } from "../types/config.type";
 import { systemConfigSchema, SystemConfigFormValues } from "../schemas/config.schema";
@@ -69,8 +70,8 @@ export function ConfigFormDialog({
           toast.success("Cập nhật cấu hình thành công");
           onClose();
         },
-        onError: (error: any) => {
-          toast.error(error.response?.data?.message || "Lỗi khi cập nhật cấu hình");
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, "Lỗi khi cập nhật cấu hình"));
         },
       }
     );

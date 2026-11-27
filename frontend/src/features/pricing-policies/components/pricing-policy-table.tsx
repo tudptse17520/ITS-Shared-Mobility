@@ -10,7 +10,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/common/data-table";
 import { PricingPolicy } from "@/features/pricing-policies/types/pricing-policy.type";
 import { Button } from "@/components/ui/button";
-import { PencilSimpleLineIcon as Edit2, TrashIcon as Trash2, EyeIcon as Eye } from "@phosphor-icons/react/ssr";
+import { PencilSimpleLineIcon as Edit2, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import { formatCurrency } from "@/utils/format-currency";
 import { Badge } from "@/components/ui/badge";
 
@@ -100,7 +100,12 @@ export function PricingPolicyTable({
           }
 
           return (
-            <Badge variant={variant === "success" ? "default" : variant as any} 
+            <Badge
+              variant={
+                (variant === "success"
+                  ? "default"
+                  : variant) as "default" | "secondary" | "destructive" | "outline"
+              } 
               className={variant === "success" ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20" : 
                          variant === "warning" ? "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20" : ""}
             >

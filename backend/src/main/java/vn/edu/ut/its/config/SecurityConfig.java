@@ -1,40 +1,48 @@
 package vn.edu.ut.its.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import vn.edu.ut.its.exception.ErrorResponse;
 import vn.edu.ut.its.security.JwtAuthenticationFilter;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Cấu hình Spring Security cho hệ thống ITS.
- * - Tắt CSRF (REST API stateless).
- * - Session STATELESS (dùng JWT thay vì session).
- * - Cho phép truy cập public: /api/v1/auth/**, Swagger UI.
- * - Các endpoint còn lại tạm thời permitAll (sẽ thêm JWT Filter sau).
+ * Cấu hình Spring Security cho hệ thống ITS-Shared-Mobility.
+ * - Stateless JWT Authentication.
+ * - Bật @EnableMethodSecurity cho phân quyền @PreAuthorize (ADMIN / USER).
+ * - Public chỉ cho login/register, Swagger và VNPay IPN/Return; SSE stream yêu cầu JWT (Authorization hoặc ?token=).
  */
 @Configuration
 @EnableWebSecurity
-// @EnableMethodSecurity // Tạm thời comment để bỏ qua các ràng buộc @PreAuthorize
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper;
+
+    @Value("${app.security.require-auth:true}")
+    private boolean requireAuth;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -43,29 +51,61 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Endpoint xác thực - public
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        // Swagger UI & OpenAPI docs - public
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-                        // Bỏ qua mọi ràng buộc Security & JWT (Theo yêu cầu)
-                        .anyRequest().permitAll())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            ErrorResponse body = ErrorResponse.builder()
+                                    .status(HttpServletResponse.SC_UNAUTHORIZED)
+                                    .error("Unauthorized")
+                                    .message("Vui lòng đăng nhập hoặc cung cấp JWT token hợp lệ.")
+                                    .build();
+                            response.getWriter().write(objectMapper.writeValueAsString(body));
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            ErrorResponse body = ErrorResponse.builder()
+                                    .status(HttpServletResponse.SC_FORBIDDEN)
+                                    .error("Forbidden")
+                                    .message("Bạn không có quyền truy cập tài nguyên này.")
+                                    .build();
+                            response.getWriter().write(objectMapper.writeValueAsString(body));
+                        }))
+                .authorizeHttpRequests(auth -> {
+                    auth
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+                            .requestMatchers(
+                                    "/swagger-ui/**",
+                                    "/swagger-ui.html",
+                                    "/v3/api-docs/**"
+                            ).permitAll()
+                            .requestMatchers(
+                                    "/api/v1/payments/vnpay-ipn",
+                                    "/api/v1/payments/vnpay-return"
+                            ).permitAll();
+
+                    if (requireAuth) {
+                        auth.anyRequest().authenticated();
+                    } else {
+                        auth.anyRequest().permitAll();
+                    }
+                })
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     /**
-     * CORS configuration to allow Frontend (Next.js at port 3000) to call Backend API.
+     * Cấu hình CORS cho phép Next.js frontend gọi Backend API.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -75,10 +115,6 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * Bean mã hóa mật khẩu sử dụng thuật toán BCrypt.
-     * Dùng để hash password khi tạo user và verify khi đăng nhập.
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

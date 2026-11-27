@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AuthFrame } from "@/components/layout/auth-frame";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { EyeIcon as Eye, EyeSlashIcon as EyeOff, CircleNotchIcon as Loader2, UserPlusIcon as UserPlus, UserIcon as User, LockKeyIcon as Lock, PhoneIcon as Phone, IdentificationBadgeIcon as BadgeInfo, BicycleIcon as Bike } from "@phosphor-icons/react/ssr";
+import { EyeIcon as Eye, EyeSlashIcon as EyeOff, CircleNotchIcon as Loader2, UserPlusIcon as UserPlus, UserIcon as User, LockKeyIcon as Lock, PhoneIcon as Phone, IdentificationBadgeIcon as BadgeInfo } from "@phosphor-icons/react/ssr";
 
 import { authService } from "@/services/auth.service";
 import { setCookie } from "@/utils/storage";
@@ -78,9 +78,10 @@ export default function RegisterPage() {
 
       toast.success(res.message || "Đăng ký tài khoản thành công!");
       router.push("/profile");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
       const msg =
-        err?.response?.data?.message ||
+        apiErr?.response?.data?.message ||
         "Đăng ký thất bại (tên đăng nhập hoặc số điện thoại có thể đã tồn tại).";
       setErrorMsg(msg);
       toast.error(msg);

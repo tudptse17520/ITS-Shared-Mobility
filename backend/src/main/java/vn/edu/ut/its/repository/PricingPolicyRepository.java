@@ -32,4 +32,7 @@ public interface PricingPolicyRepository extends JpaRepository<PricingPolicy, Lo
      * @return một Optional chứa PricingPolicy nếu tìm thấy
      */
     java.util.Optional<PricingPolicy> findFirstByVehicleType_IdAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(Long vehicleTypeId, java.time.LocalDateTime dateTime);
+
+    @Query("SELECT p FROM PricingPolicy p JOIN FETCH p.vehicleType vt WHERE p.effectiveDate <= :dateTime ORDER BY p.effectiveDate DESC")
+    java.util.List<PricingPolicy> findEffectivePoliciesUpTo(@org.springframework.data.repository.query.Param("dateTime") java.time.LocalDateTime dateTime);
 }

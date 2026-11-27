@@ -1,13 +1,20 @@
 package vn.edu.ut.its.mobility.ui.screens
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.webkit.WebResourceRequest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -28,17 +35,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.UrlTileProvider
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 import vn.edu.ut.its.mobility.BuildConfig
 import vn.edu.ut.its.mobility.model.FleetVehicleDto
 import vn.edu.ut.its.mobility.model.RideSessionDto
@@ -73,6 +83,68 @@ fun HomeMapScreen(viewModel: MainViewModel) {
     var nativeMap by rememberSaveable { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var feedbackSessionTarget by remember { mutableStateOf<RideSessionDto?>(null) }
+    var remainingReserveSeconds by remember { mutableStateOf(0L) }
+
+    val tryReadLastLocation = remember(context) {
+        {
+            runCatching {
+                val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (loc != null) {
+                    viewModel.updateUserLocation(loc.latitude, loc.longitude)
+                }
+            }
+            Unit
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val granted = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            perms[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            tryReadLastLocation()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (fineGranted || coarseGranted) {
+            tryReadLastLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(viewModel.reservationExpiresAtMillis) {
+        val expiresAt = viewModel.reservationExpiresAtMillis
+        if (expiresAt == null) {
+            remainingReserveSeconds = 0L
+        } else {
+            while (true) {
+                val rem = ((expiresAt - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
+                remainingReserveSeconds = rem
+                if (rem <= 0L) break
+                delay(1000L)
+            }
+        }
+    }
     val colors = MaterialTheme.colorScheme
     val vehicles = remember(viewModel.vehicles, filter) { viewModel.vehicles.filter(filter::includes) }
     val selected = viewModel.selectedVehicle
@@ -215,9 +287,11 @@ fun HomeMapScreen(viewModel: MainViewModel) {
             }
         }
         FleetSheet.VEHICLE -> if (selected != null) {
+            val holdRemaining = if (viewModel.reservedVehicleId == selected.id) remainingReserveSeconds else 0L
             VehicleDetailsSheet(
                 vehicle = selected,
                 currency = currency,
+                holdRemainingSeconds = holdRemaining,
                 loading = viewModel.isLoading,
                 notice = notice,
                 isError = viewModel.errorMessage != null,
@@ -238,8 +312,33 @@ fun HomeMapScreen(viewModel: MainViewModel) {
                 viewModel.startRideByCode(code)
             },
         )
-        FleetSheet.HISTORY -> RideHistoryDialog(viewModel.rideHistory, viewModel.isLoadingHistory, currency) { sheet = FleetSheet.NONE }
+        FleetSheet.HISTORY -> RideHistoryDialog(
+            rides = viewModel.rideHistory,
+            isLoading = viewModel.isLoadingHistory,
+            vndFormat = currency,
+            onDismiss = { sheet = FleetSheet.NONE },
+            onReportIssue = { ride ->
+                sheet = FleetSheet.NONE
+                feedbackSessionTarget = ride
+            },
+        )
         FleetSheet.NONE -> Unit
+    }
+
+    feedbackSessionTarget?.let { targetRide ->
+        ReportIssueDialog(
+            ride = targetRide,
+            isSubmitting = viewModel.isLoading,
+            onDismiss = { feedbackSessionTarget = null },
+            onSubmit = { issueType, description ->
+                viewModel.submitRideFeedback(
+                    rideSessionId = targetRide.sessionId,
+                    issueType = issueType,
+                    description = description,
+                    onSuccess = { feedbackSessionTarget = null }
+                )
+            }
+        )
     }
 }
 
@@ -318,6 +417,7 @@ private fun VehicleRow(vehicle: FleetVehicleDto, highlighted: Boolean) {
 private fun VehicleDetailsSheet(
     vehicle: FleetVehicleDto,
     currency: NumberFormat,
+    holdRemainingSeconds: Long,
     loading: Boolean,
     notice: String?,
     isError: Boolean,
@@ -328,6 +428,9 @@ private fun VehicleDetailsSheet(
     val colors = MaterialTheme.colorScheme
     val reserved = vehicle.fleetStatus == "RESERVED"
     val rentable = vehicle.fleetStatus == "AVAILABLE" || reserved
+    val holdSuffix = if (reserved && holdRemainingSeconds > 0L) {
+        " (%02d:%02d)".format(holdRemainingSeconds / 60, holdRemainingSeconds % 60)
+    } else ""
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -341,7 +444,7 @@ private fun VehicleDetailsSheet(
                 style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             Surface(shape = MaterialTheme.shapes.large, color = colors.surfaceContainer) {
                 Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text(fleetStatusLabel(vehicle.fleetStatus) + " · Pin ${vehicle.batteryLevel}%", style = MaterialTheme.typography.titleSmall)
+                    Text(fleetStatusLabel(vehicle.fleetStatus) + holdSuffix + " · Pin ${vehicle.batteryLevel}%", style = MaterialTheme.typography.titleSmall)
                     HorizontalDivider(color = colors.outlineVariant)
                     Text("${currency.format(vehicle.hourlyRate)} đ/giờ", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Phí mở khóa ${currency.format(vehicle.unlockFee)} đ", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
@@ -381,7 +484,9 @@ private fun FleetMap(
                 }
             }
             GoogleMap(Modifier.fillMaxSize(), cameraPositionState = position, uiSettings = MapUiSettings(zoomControlsEnabled = true)) {
-                TileOverlay(tileProvider = tiles, zIndex = 0f)
+                if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+                    TileOverlay(tileProvider = tiles, zIndex = 0f)
+                }
                 viewModel.stations.forEach { station ->
                     key(station.id) {
                         Marker(
@@ -427,6 +532,7 @@ private fun RideHistoryDialog(
     isLoading: Boolean,
     vndFormat: NumberFormat,
     onDismiss: () -> Unit,
+    onReportIssue: (RideSessionDto) -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
     ModalBottomSheet(
@@ -457,6 +563,23 @@ private fun RideHistoryDialog(
                                     Text("${ride.distanceKm} km · ${ride.durationMinutes} phút", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                                     Text("${vndFormat.format(fee)} đ", fontWeight = FontWeight.SemiBold, color = colors.primary)
                                 }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        onClick = { onReportIssue(ride) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.ReportProblem,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Báo cáo sự cố", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
                             }
                         }
                     }
@@ -467,6 +590,79 @@ private fun RideHistoryDialog(
     }
 }
 
+@Composable
+internal fun ReportIssueDialog(
+    ride: RideSessionDto,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (issueType: String, description: String) -> Unit
+) {
+    val issueOptions = remember {
+        listOf(
+            "WRONG_RETURN_LOCATION" to "Trả xe sai vị trí",
+            "WRONG_PLATE" to "Sai biển số / thông tin xe",
+            "RIDE_OVERTIME" to "Sự cố thời gian thuê",
+            "UNPAID_RIDE" to "Sự cố thanh toán",
+            "OTHER" to "Sự cố kỹ thuật khác"
+        )
+    }
+    var selectedIssueType by remember { mutableStateOf("OTHER") }
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        title = {
+            Text("Báo cáo sự cố · ${ride.vehicleCode ?: ride.sessionCode}", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Mã chuyến #${ride.sessionCode}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                issueOptions.forEach { (code, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedIssueType = code }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedIssueType == code,
+                            onClick = { selectedIssueType = code }
+                        )
+                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Mô tả chi tiết") },
+                    placeholder = { Text("Ví dụ: Xe yếu pin hoặc khóa dock khó đóng...") },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            ItsButton(
+                onClick = { onSubmit(selectedIssueType, description) },
+                enabled = !isSubmitting,
+            ) {
+                Text(if (isSubmitting) "Đang gửi..." else "Gửi báo cáo")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text("Hủy")
+            }
+        }
+    )
+}
+
 private fun fleetStatusLabel(status: String) = when (status) {
     "AVAILABLE" -> "Sẵn sàng"
     "RESERVED" -> "Đang giữ"
@@ -475,8 +671,6 @@ private fun fleetStatusLabel(status: String) = when (status) {
     "MAINTENANCE" -> "Bảo trì"
     else -> "Tạm ngưng"
 }
-
-
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun VietMapLeafletWebView(
@@ -514,7 +708,14 @@ private fun VietMapLeafletWebView(
     val script = resize + "window.updateMobilityMap && window.updateMobilityMap($markers, ${selectedVehicleId ?: "null"}, $animations);"
     val latestScript by rememberUpdatedState(script)
     val latestSelect by rememberUpdatedState(onSelect)
-    val html = remember(centerLat, centerLng) {
+    val vietmapLayerScript = if (BuildConfig.VIETMAP_API_KEY.isNotBlank()) {
+        """
+              L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
+                maxZoom: 20, tileSize: 256, attribution: '&copy; VietMap'
+              }).addTo(map);
+        """.trimIndent()
+    } else ""
+    val html = remember(centerLat, centerLng, vietmapLayerScript) {
         """
         <!DOCTYPE html>
         <html lang="vi">
@@ -552,9 +753,7 @@ private fun VietMapLeafletWebView(
               L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19, attribution: '&copy; OpenStreetMap'
               }).addTo(map);
-              L.tileLayer('https://maps.vietmap.vn/api/tm/{z}/{x}/{y}@2x.png?apikey=${BuildConfig.VIETMAP_API_KEY}', {
-                maxZoom: 20, tileSize: 256, attribution: '&copy; VietMap'
-              }).addTo(map);
+              $vietmapLayerScript
 
               var layer = L.layerGroup().addTo(map);
               var markers = [], selectedId = null, previousId = null, sized = false;

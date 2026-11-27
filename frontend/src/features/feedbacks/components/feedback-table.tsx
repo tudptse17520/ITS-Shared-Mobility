@@ -2,7 +2,8 @@
 
 import { PencilSimpleIcon as Edit, EyeIcon as Eye, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
 import * as React from "react";
-import { Feedback } from "../types/feedback.type";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Feedback, type FeedbackStatus, type IssueType } from "../types/feedback.type";
 import { DataTable } from "@/components/common/data-table";
 import { Button } from "@/components/ui/button";
 import { FeedbackStatusBadge } from "./feedback-status-badge";
@@ -21,7 +22,9 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
     licensePlate: `51F-${100 + (item.id % 900)}.${10 + (item.id % 90)}`,
   })), [data]);
 
-  const columns = [
+  type FeedbackRow = Feedback & { licensePlate: string };
+
+  const columns: ColumnDef<FeedbackRow>[] = [
     {
       header: "ID",
       accessorKey: "id",
@@ -29,7 +32,7 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
     {
       header: "Lượt gửi & Xe",
       accessorKey: "rideSessionId",
-      cell: ({ row }: any) => (
+      cell: ({ row }) => (
         <div className="flex flex-col">
           <span className="font-semibold text-primary">#{row.original.rideSessionId}</span>
           <span className="text-xs text-muted-foreground">{row.original.licensePlate}</span>
@@ -39,7 +42,7 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
     {
       header: "Loại sự cố",
       accessorKey: "issueType",
-      cell: ({ getValue }: any) => {
+      cell: ({ getValue }) => {
         const typeMap: Record<string, string> = {
           OTHER: "Khác",
           WRONG_PLATE: "Sai biển số",
@@ -47,28 +50,31 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
           WRONG_RETURN_LOCATION: "Trả xe sai vị trí",
           UNPAID_RIDE: "Chưa thanh toán cước",
         };
-        const val = getValue();
+        const val = getValue<IssueType>();
         return <span className="font-medium">{typeMap[val] || val}</span>;
       },
     },
     {
       header: "Mô tả",
       accessorKey: "description",
-      cell: ({ getValue }: any) => (
-        <span className="max-w-[200px] lg:max-w-[300px] truncate block text-xs" title={getValue()}>
-          {getValue() || "Không có mô tả"}
-        </span>
-      ),
+      cell: ({ getValue }) => {
+        const description = getValue<string | undefined>();
+        return (
+          <span className="max-w-[200px] lg:max-w-[300px] truncate block text-xs" title={description}>
+            {description || "Không có mô tả"}
+          </span>
+        );
+      },
     },
     {
       header: "Trạng thái",
       accessorKey: "status",
-      cell: ({ getValue }: any) => <FeedbackStatusBadge status={getValue()} />,
+      cell: ({ getValue }) => <FeedbackStatusBadge status={getValue<FeedbackStatus>()} />,
     },
     {
       header: "Thao tác",
       id: "actions",
-      cell: ({ row }: any) => (
+      cell: ({ row }) => (
         <div className="flex gap-2">
           <Button
             variant="outline"

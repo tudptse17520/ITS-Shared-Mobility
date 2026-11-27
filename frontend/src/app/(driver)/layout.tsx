@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoonIcon as Moon, SunIcon as Sun, SignOutIcon as LogOut } from "@phosphor-icons/react/ssr";
@@ -12,6 +12,8 @@ import { removeCookie } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/layout/brand";
 
+const emptySubscribe = () => () => {};
+
 export default function DriverLayout({
   children,
 }: {
@@ -22,11 +24,11 @@ export default function DriverLayout({
   const { setTheme } = useThemeStore();
   const navItems = getDriverNavItems();
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const toggleTheme = () => {
     setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");

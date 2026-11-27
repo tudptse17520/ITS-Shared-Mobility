@@ -1,7 +1,23 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun resolveConfig(key: String, defaultValue: String = ""): String {
+    val gradleProp = project.findProperty(key)?.toString()?.takeIf { it.isNotBlank() }
+    val localProp = localProps.getProperty(key)?.takeIf { it.isNotBlank() }
+    val envProp = System.getenv(key)?.takeIf { it.isNotBlank() }
+    return gradleProp ?: localProp ?: envProp ?: defaultValue
 }
 
 android {
@@ -15,10 +31,16 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        val apiBaseUrl = providers.gradleProperty("itsApiBaseUrl").orElse("http://10.0.2.2:8080/api/v1/")
-        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl.get()}\"")
-        buildConfigField("String", "VIETMAP_API_KEY", "\"660b3d92e2173b974557cd78118076c8b861dddceb0e8247\"")
-        manifestPlaceholders["MAPS_API_KEY"] = "AIzaSyDummyKeyForVietMapOverlay"
+        val apiBaseUrl = resolveConfig(
+            "API_BASE_URL",
+            resolveConfig("itsApiBaseUrl", "http://10.0.2.2:8080/api/v1/")
+        )
+        val vietmapKey = resolveConfig("VIETMAP_API_KEY", "")
+        val mapsApiKey = resolveConfig("MAPS_API_KEY", "MAPS_API_KEY_PLACEHOLDER")
+
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "VIETMAP_API_KEY", "\"$vietmapKey\"")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
@@ -62,7 +84,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.1")
 
-    // Google Maps SDK & Maps Compose (kết hợp TileOverlay VietMap)
+    // Google Maps SDK & Maps Compose (kết hợp TileOverlay VietMap / OSM)
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     implementation("com.google.maps.android:maps-compose:6.1.0")
 
@@ -78,5 +100,6 @@ dependencies {
     // ZXing QR Code generator & decoder (offline + emulator support)
     implementation("com.google.zxing:core:3.5.3")
 
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

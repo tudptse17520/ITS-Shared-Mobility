@@ -1,10 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils';
 import { FormContainer, FormHeader, FormFields, FormActions } from '@/components/common/form-container';
@@ -32,7 +29,9 @@ export function StationModal({ open, onClose, station }: StationModalProps) {
   const isPending = isCreating || isUpdating;
 
   const form = useForm<StationCreateForm | StationUpdateForm>({
-    resolver: zodResolver(isEditMode ? stationUpdateSchema as any : stationCreateSchema as any),
+    resolver: (isEditMode
+      ? zodResolver(stationUpdateSchema)
+      : zodResolver(stationCreateSchema)) as Resolver<StationCreateForm | StationUpdateForm>,
     defaultValues: {
       stationName: '',
       address: '',

@@ -7,7 +7,7 @@ interface ConfigFilterProps {
   isLoading?: boolean;
 }
 
-export function ConfigFilter({ onSearch, isLoading }: ConfigFilterProps) {
+export function ConfigFilter({ onSearch }: ConfigFilterProps) {
   return (
     <div className="flex items-center gap-4">
       <div className="w-full sm:w-[450px]">

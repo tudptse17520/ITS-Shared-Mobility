@@ -61,9 +61,9 @@ export function OccupancyChart({ filter }: OccupancyChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tỷ lệ lấp đầy</CardTitle>
+        <CardTitle>Tỷ lệ sử dụng dock (hiện tại)</CardTitle>
         <CardDescription>
-          Trung bình: <span className="font-bold text-primary">{rate.toFixed(1)}%</span>
+          Mức sử dụng hiện thời: <span className="font-bold text-primary">{rate.toFixed(1)}%</span>
         </CardDescription>
       </CardHeader>
       <CardContent>

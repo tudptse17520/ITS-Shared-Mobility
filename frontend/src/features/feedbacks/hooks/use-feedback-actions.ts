@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { feedbackService } from "@/services/feedback.service";
 import { FeedbackRequest } from "../types/feedback.type";
 import { FEEDBACK_QUERY_KEYS } from "./use-feedbacks";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 export function useFeedbackActions() {
   const queryClient = useQueryClient();
@@ -28,8 +29,8 @@ export function useFeedbackActions() {
       queryClient.invalidateQueries({ queryKey: FEEDBACK_QUERY_KEYS.all });
       toast.success("Xóa sự cố thành công!");
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Xóa sự cố thất bại");
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, "Xóa sự cố thất bại"));
     },
   });
 

@@ -1,5 +1,6 @@
 package vn.edu.ut.its.service;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -17,7 +18,7 @@ public class SseEmitterManager {
 
     public SseEmitter subscribe(Long stationId) {
         SseEmitter emitter = new SseEmitter(600000L); // 10 minutes timeout
-        
+
         Long key = stationId != null ? stationId : -1L; // -1L for global
         clients.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(emitter);
 
@@ -39,14 +40,37 @@ public class SseEmitterManager {
     }
 
     public void broadcastToStation(Long stationId, Object eventData) {
-        // Broadcast to specific station clients
         broadcastToKey("dock-availability", stationId, eventData);
-        // Broadcast to global clients (-1L)
         broadcastToKey("dock-availability", -1L, eventData);
     }
 
     public void broadcastFleetEvent(Object eventData) {
         broadcastToKey("fleet-telemetry", -1L, eventData);
+    }
+
+    @Scheduled(fixedRate = 25000)
+    public void sendHeartbeat() {
+        for (Map.Entry<Long, CopyOnWriteArrayList<SseEmitter>> entry : clients.entrySet()) {
+            CopyOnWriteArrayList<SseEmitter> list = entry.getValue();
+            if (list == null || list.isEmpty()) {
+                clients.remove(entry.getKey());
+                continue;
+            }
+            List<SseEmitter> deadEmitters = new ArrayList<>();
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.send(SseEmitter.event().comment("keepalive"));
+                } catch (Exception e) {
+                    deadEmitters.add(emitter);
+                }
+            }
+            if (!deadEmitters.isEmpty()) {
+                list.removeAll(deadEmitters);
+                if (list.isEmpty()) {
+                    clients.remove(entry.getKey());
+                }
+            }
+        }
     }
 
     private void broadcastToKey(String eventName, Long key, Object eventData) {

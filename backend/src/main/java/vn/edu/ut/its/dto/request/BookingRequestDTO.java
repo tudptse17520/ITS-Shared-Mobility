@@ -17,7 +17,7 @@ public class BookingRequestDTO {
     @NotNull(message = "Mã phương tiện không được để trống")
     private Long vehicleId;
 
-    @NotNull(message = "Mã vị trí đỗ không được để trống")
+    @NotNull(message = "Mã vị trí dock trạm không được để trống")
     private Long stationDockId;
 
     @NotBlank(message = "Thời điểm bắt đầu dự kiến không được để trống")
