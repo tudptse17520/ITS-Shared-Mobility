@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { useAuthStore } from "@/stores/auth.store";
 import { useQuery } from "@tanstack/react-query";
 import { getPayments } from "@/services/payment.service";
+import type { Payment } from "@/features/payments/types/payment.type";
 import { sessionService } from "@/services/ride-session.service";
 import { formatDateTime } from "@/utils/format-date";
 import { formatCurrency } from "@/utils/format-currency";
@@ -157,7 +158,7 @@ function StatCard({
 // Payment History
 // ---------------------------------------------------------------------------
 
-const STATUS_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string; className: string }> = {
+const STATUS_CONFIG: Record<Payment["status"], { icon: React.ComponentType<{ className?: string }>; label: string; className: string }> = {
   SUCCESS: {
     icon: CheckCircle2,
     label: "Thành công",
@@ -173,11 +174,19 @@ const STATUS_CONFIG: Record<string, { icon: React.ComponentType<{ className?: st
     label: "Thất bại",
     className: "text-rose-600 bg-rose-500/10 dark:text-rose-400",
   },
-  CANCELLED: {
-    icon: XCircle,
-    label: "Đã hủy",
-    className: "text-gray-500 bg-gray-500/10 dark:text-gray-400",
-  },
+};
+
+const FEE_LABELS: Record<Payment["feeType"], string> = {
+  RIDE_FEE: "Cước chuyến đi",
+  BOOKING_DEPOSIT: "Tiền cọc giữ xe",
+  HISTORICAL_ADJUSTMENT: "Điều chỉnh giao dịch cũ",
+};
+
+const PAYMENT_METHOD_LABELS: Record<Payment["paymentMethod"], string> = {
+  Cash: "Tiền mặt",
+  Vnpay: "VNPay",
+  Momo: "MoMo",
+  Credit_Card: "Thẻ tín dụng",
 };
 
 function PaymentHistory() {
@@ -185,7 +194,7 @@ function PaymentHistory() {
 
   const { data: payments, isLoading, isError } = useQuery({
     queryKey: ["profile-payments"],
-    queryFn: () => getPayments(),
+    queryFn: getPayments,
   });
 
   if (isLoading) {
@@ -250,7 +259,7 @@ function PaymentHistory() {
               {/* Info */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{payment.feeType || "Cước chuyến đi"}</span>
+                  <span className="text-sm font-medium">{FEE_LABELS[payment.feeType]}</span>
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}>
                     {config.label}
                   </span>
@@ -258,7 +267,7 @@ function PaymentHistory() {
                 <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Wallet className="h-3 w-3" />
-                    {payment.paymentMethod}
+                    {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
                   </span>
                   <span>•</span>
                   <span>{formatDateTime(payment.paymentTime)}</span>

@@ -1,5 +1,6 @@
 package vn.edu.ut.its.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,20 +14,6 @@ import vn.edu.ut.its.dto.response.PaymentListResponseDTO;
 import vn.edu.ut.its.dto.response.PaymentResponseDTO;
 import vn.edu.ut.its.service.PaymentService;
 
-/**
- * REST Controller for Payment Management.
- * Base endpoint: /api/v1/payments
- *
- * Endpoints:
- * - POST   /api/v1/payments                → Tạo thanh toán (201)
- * - GET    /api/v1/payments                → Danh sách giao dịch (200)
- * - GET    /api/v1/payments/{id}           → Chi tiết biên lai (200)
- * - PATCH  /api/v1/payments/{id}/status    → Staff cập nhật thủ công (200)
- * - PATCH  /api/v1/payments/{id}/cancel    → Hủy giao dịch (200)
- *
- * Nghiêm cấm khai báo @DeleteMapping.
- */
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -37,11 +24,9 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    // ==================== POST - Tạo thanh toán ====================
-
     /**
      * Create a new payment transaction.
-     * Validates E2 (Fixed Fee Mismatch) and E3 (Overpayment Violation).
+     * Creates booking deposits and ride fare payments using cash or VNPay.
      * Cash payments are automatically set to SUCCESS.
      *
      * @param requestDTO the payment data (validated with @Valid)
@@ -69,14 +54,12 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    // ==================== GET - Danh sách giao dịch ====================
-
     /**
      * Retrieve a filtered list of payment transactions.
      * All query parameters are optional.
      *
      * @param paymentMethod filter by payment method (Cash, Momo, Vnpay, Credit_Card)
-     * @param status        filter by payment status (PENDING, SUCCESS, FAILED, CANCELLED)
+     * @param status        filter by payment status (PENDING, SUCCESS, FAILED)
      * @param fromDate      filter from date (format DD-MM-YYYY)
      * @return HTTP 200 OK with wrapped payment list
      */
@@ -88,8 +71,6 @@ public class PaymentController {
         PaymentListResponseDTO response = paymentService.getPayments(paymentMethod, status, fromDate);
         return ResponseEntity.ok(response);
     }
-
-    // ==================== GET - Chi tiết biên lai ====================
 
     /**
      * Retrieve detail of a specific payment receipt.
@@ -103,14 +84,12 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    // ==================== PATCH - Staff cập nhật thủ công ====================
-
     /**
-     * Staff manual update of a PENDING payment status.
-     * Requires status (SUCCESS/FAILED) and audit note (min 10 chars).
+     * An administrator can update a PENDING payment.
+     * Requires status (SUCCESS/FAILED) and reason (min 10 chars).
      *
      * @param id         the payment ID (path variable)
-     * @param requestDTO the new status and audit note
+     * @param requestDTO the new status and reason
      * @return HTTP 200 OK with updated payment
      */
     @PatchMapping("/{id}/status")
@@ -121,8 +100,6 @@ public class PaymentController {
         PaymentResponseDTO updatedPayment = paymentService.updatePaymentStatus(id, requestDTO);
         return ResponseEntity.ok(updatedPayment);
     }
-
-    // ==================== PATCH - Hủy giao dịch ====================
 
     /**
      * Cancel a PENDING payment transaction.
@@ -135,8 +112,6 @@ public class PaymentController {
         PaymentResponseDTO cancelledPayment = paymentService.cancelPayment(id);
         return ResponseEntity.ok(cancelledPayment);
     }
-
-    // ==================== VNPAY IPN Webhook ====================
 
     /**
      * Webhook endpoint for VNPAY Instant Payment Notification (IPN).

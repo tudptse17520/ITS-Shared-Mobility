@@ -60,14 +60,14 @@ data class FleetVehicleDto(
 
 data class ReserveRequest(
     val vehicleId: Long,
-    val userId: Long? = null,
-    val holdMinutes: Int = 15
+    val userId: Long? = null
 )
 
 data class BookingResponseDto(
     val id: Long,
     val status: String,
-    val message: String
+    val message: String,
+    val expiresAtEpochMillis: Long? = null
 )
 
 data class StartRideRequest(

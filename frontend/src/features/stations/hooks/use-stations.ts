@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getStations,
-  getStationDetail,
   createStation,
   updateStation,
   updateStationStatus,
@@ -17,14 +16,6 @@ export const useStations = (keyword?: string, status?: string) => {
     queryKey: ['stations', keyword, status],
     queryFn: () => getStations(keyword, status),
     refetchInterval: 5000,
-  });
-};
-
-export const useStationDetail = (id: number) => {
-  return useQuery({
-    queryKey: ['station', id],
-    queryFn: () => getStationDetail(id),
-    enabled: !!id,
   });
 };
 

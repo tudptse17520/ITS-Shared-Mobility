@@ -127,7 +127,7 @@ class PostAuditImprovementsTest {
                 .orElseThrow();
 
         try {
-            // 1. HOLD_DURATION_MINUTES = 25 -> reservation omitting holdMinutes uses 25 minutes
+            // The server applies the configured duration even if an older client sends a duration.
             mockMvc.perform(put("/api/v1/configurations/" + holdConfig.getId())
                             .header("Authorization", adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -138,9 +138,10 @@ class PostAuditImprovementsTest {
             mockMvc.perform(post("/api/v1/mobility/reserve")
                             .header("Authorization", userToken)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"vehicleId\":" + vehicle.getId() + "}"))
+                            .content("{\"vehicleId\":" + vehicle.getId() + ",\"holdMinutes\":15}"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("CONFIRMED"));
+                    .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                    .andExpect(jsonPath("$.expiresAtEpochMillis").isNumber());
 
             Booking latestBooking = bookingRepository.findAll().stream()
                     .filter(b -> b.getVehicle().getId().equals(vehicle.getId()))

@@ -1,0 +1,208 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="fig-4-11-ride-sequence" name="Hình 4.11 - Trình tự mở khóa, kết thúc và thanh toán">
+    <mxGraphModel grid="0" page="1" pageWidth="1000" pageHeight="790" pageScale="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="participant-1" value="&lt;b&gt;Android&lt;/b&gt;&lt;br&gt;Khách thuê" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="13" y="10" width="168" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="lifeline-1" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=none;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="61" as="sourcePoint" />
+            <mxPoint x="97" y="746" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="participant-2" value="&lt;b&gt;Backend API&lt;/b&gt;&lt;br&gt;Spring Boot" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="209" y="10" width="168" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="lifeline-2" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=none;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="61" as="sourcePoint" />
+            <mxPoint x="293" y="746" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="participant-3" value="&lt;b&gt;SQL Server&lt;/b&gt;&lt;br&gt;Xe và chuyến đi" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="406" y="10" width="168" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="lifeline-3" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=none;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="490" y="61" as="sourcePoint" />
+            <mxPoint x="490" y="746" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="participant-4" value="&lt;b&gt;Web Admin&lt;/b&gt;&lt;br&gt;Quản trị viên" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="603" y="10" width="168" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="lifeline-4" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=none;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="687" y="61" as="sourcePoint" />
+            <mxPoint x="687" y="746" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="participant-5" value="&lt;b&gt;VNPay Sandbox&lt;/b&gt;&lt;br&gt;Thanh toán" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="799" y="10" width="168" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="lifeline-5" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=none;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="883" y="61" as="sourcePoint" />
+            <mxPoint x="883" y="746" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="subscribe" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="687" y="100" as="sourcePoint" />
+            <mxPoint x="293" y="100" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="subscribe-label" value="1. GET /iot/stream?token=…" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="81" width="388" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="start" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="162" as="sourcePoint" />
+            <mxPoint x="293" y="162" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="start-label" value="2. POST /mobility/rides/start&lt;br&gt;Quét QR lấy vehicleCode" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="126" width="190" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="persist-start" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="211" as="sourcePoint" />
+            <mxPoint x="490" y="211" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="persist-start-label" value="Khóa bản ghi xe, lưu&lt;br&gt;IN_USE và UNLOCKED" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="175" width="191" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="publish-start" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="243" as="sourcePoint" />
+            <mxPoint x="687" y="243" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="publish-start-label" value="SSE fleet-telemetry cập nhật xe" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="224" width="388" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="reply-start" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="274" as="sourcePoint" />
+            <mxPoint x="97" y="274" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="reply-start-label" value="Trả thông tin chuyến đi" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="255" width="190" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="loop" value="" style="rounded=0;dashed=1;fillColor=none;strokeColor=#000000;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="25" y="294" width="750" height="153" as="geometry" />
+        </mxCell>
+        <mxCell id="loop-label" value="&lt;b&gt;Lặp khi mô phỏng di chuyển&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="25" y="294" width="255" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="simulate" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="365" as="sourcePoint" />
+            <mxPoint x="293" y="365" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="simulate-label" value="3. POST /iot/simulate-step/&lt;br&gt;{sessionId}" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="329" width="190" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="persist-telemetry" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="398" as="sourcePoint" />
+            <mxPoint x="490" y="398" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="persist-telemetry-label" value="Lưu GPS, pin&lt;br&gt;và quãng đường" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="362" width="191" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="publish-telemetry" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="429" as="sourcePoint" />
+            <mxPoint x="687" y="429" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="publish-telemetry-label" value="SSE phát tọa độ và mức pin" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="410" width="388" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="end" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="500" as="sourcePoint" />
+            <mxPoint x="293" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="end-label" value="4. POST /mobility/rides/&lt;br&gt;{sessionId}/end" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="464" width="190" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="persist-end" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="548" as="sourcePoint" />
+            <mxPoint x="490" y="548" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="persist-end-label" value="Gán trạm trả, khóa xe&lt;br&gt;và lưu cước" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="512" width="191" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="publish-end" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="578" as="sourcePoint" />
+            <mxPoint x="687" y="578" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="publish-end-label" value="SSE phát AVAILABLE hoặc LOW_BATTERY" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="559" width="388" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="reply-end" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="606" as="sourcePoint" />
+            <mxPoint x="97" y="606" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="reply-end-label" value="Trả kết quả và tổng cước" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="587" width="190" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="request-payment" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="644" as="sourcePoint" />
+            <mxPoint x="293" y="644" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="request-payment-label" value="5. POST /payments" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="625" width="190" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="payment-link" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="293" y="675" as="sourcePoint" />
+            <mxPoint x="97" y="675" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="payment-link-label" value="Trả URL VNPay đã ký" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="656" width="190" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="open-vnpay" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="97" y="706" as="sourcePoint" />
+            <mxPoint x="883" y="706" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="open-vnpay-label" value="Android mở URL và thanh toán" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="687" width="780" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="confirm-vnpay" style="html=1;strokeColor=#000000;strokeWidth=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="883" y="737" as="sourcePoint" />
+            <mxPoint x="293" y="737" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="confirm-vnpay-label" value="6. GET /payments/vnpay-ipn · Backend xác thực chữ ký và xử lý lặp an toàn" style="text;html=1;align=center;verticalAlign=bottom;whiteSpace=wrap;fontSize=15;labelBackgroundColor=#ffffff;fontColor=#000000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="296" y="718" width="584" height="17" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Các đường dẫn API trong sơ đồ dùng tiền tố /api/v1." style="text;html=1;align=left;fontSize=15;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="13" y="757" width="460" height="24" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

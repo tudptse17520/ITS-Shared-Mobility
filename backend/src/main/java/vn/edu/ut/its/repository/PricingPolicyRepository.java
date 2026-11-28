@@ -17,14 +17,6 @@ public interface PricingPolicyRepository extends JpaRepository<PricingPolicy, Lo
     void hardDeleteAllInBatch();
 
     /**
-     * Check if any pricing policy references the given vehicle type.
-     *
-     * @param vehicleTypeId the vehicle type ID to check
-     * @return true if at least one pricing policy exists for this vehicle type
-     */
-    boolean existsByVehicleType_Id(Long vehicleTypeId);
-
-    /**
      * Tìm chính sách giá có hiệu lực mới nhất của một loại phương tiện tại thời điểm chỉ định.
      *
      * @param vehicleTypeId mã loại phương tiện

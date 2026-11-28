@@ -85,7 +85,7 @@ export default function ManagerBookingsPage() {
     <PageContainer>
       <PageHeader
         title="Quản lý Đặt giữ & Chuyến đi"
-        description="Đồng bộ trực tiếp lịch sử mở khóa QR, thanh toán chuyến đi và giữ chỗ 15 phút từ ứng dụng di động."
+        description="Theo dõi trực tiếp lượt giữ xe 15 phút và trạng thái chuyến đi của khách thuê."
       />
 
       <div className="flex flex-wrap items-center gap-2 border-b pb-3">

@@ -1,10 +1,3 @@
-export interface BookingRequest {
-  vehicleId: number;
-  stationDockId: number;
-  plannedStartAt: string; // ISO DateTime string or DD-MM-YYYY HH:mm:ss based on backend preference
-  plannedEndAt: string;
-}
-
 export interface BookingResponse {
   id: number;
   status: string;

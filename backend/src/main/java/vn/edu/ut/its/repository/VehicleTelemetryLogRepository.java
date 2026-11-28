@@ -11,6 +11,5 @@ public interface VehicleTelemetryLogRepository extends JpaRepository<VehicleTele
 
     List<VehicleTelemetryLog> findTop50ByVehicle_IdOrderByRecordedAtDesc(Long vehicleId);
 
-    List<VehicleTelemetryLog> findByRideSession_IdOrderByRecordedAtAsc(Long rideSessionId);
 }
 

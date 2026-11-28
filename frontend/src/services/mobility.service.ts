@@ -87,7 +87,6 @@ export const mobilityService = {
     const res = await axiosClient.post("/mobility/reserve", {
       vehicleId,
       userId,
-      holdMinutes: 15,
     });
     return res.data;
   },

@@ -6,8 +6,8 @@ import {
   ArrowUpRightIcon,
   BatteryWarningIcon,
   BicycleIcon,
-  BuildingsIcon,
   CalendarCheckIcon,
+  CheckCircleIcon,
   ClockIcon,
   MapPinIcon,
   NavigationArrowIcon,
@@ -124,9 +124,9 @@ export default function AdminDashboardPage() {
 
   const metrics = [
     { label: "Xe trong đội", value: vehicles?.length, Icon: BicycleIcon, tone: "fleet" },
-    { label: "Sẵn sàng", value: available, Icon: MapPinIcon, tone: "ready" },
+    { label: "Sẵn sàng", value: available, Icon: CheckCircleIcon, tone: "ready" },
     { label: "Đang cho thuê", value: inUse, Icon: NavigationArrowIcon, tone: "trip" },
-    { label: "Trạm xe", value: stations?.length, Icon: BuildingsIcon, tone: "station" },
+    { label: "Trạm xe", value: stations?.length, Icon: MapPinIcon, tone: "station" },
   ];
   const warnings = [
     { label: "Đang đặt giữ (15p)", value: reserved, Icon: CalendarCheckIcon, tone: "fleet", href: "/manager/bookings" },
