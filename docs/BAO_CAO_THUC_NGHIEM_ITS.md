@@ -16,7 +16,7 @@ Tài liệu tổng hợp kiến trúc, bảo mật, kết quả kiểm thử t�
 ### 1.2. Nghiệp vụ Shared Mobility & Cấu hình động (`/api/v1/mobility`, `/api/v1/configurations`)
 - `GET /api/v1/mobility/stations`: Danh sách trạm xe kèm số dock khả dụng (truy vấn gộp `GROUP BY`, không phát sinh N+1).
 - `GET /api/v1/mobility/vehicles/nearby?lat=...&lng=...&radiusKm=...`: Tìm xe lân cận theo công thức **Haversine**; đọc bán kính mặc định (`SEARCH_RADIUS_KM`) và chính sách giá hiện hành theo batch.
-- `POST /api/v1/mobility/reserve`: Đặt giữ xe với **Pessimistic Write Lock** (`SELECT ... WITH (UPDLOCK, ROWLOCK)`), thời hạn giữ lấy trực tiếp từ `SystemConfig` (`HOLD_DURATION_MINUTES`).
+- `POST /api/v1/mobility/reserve`: Giữ xe bằng **Pessimistic Write Lock** (`SELECT ... WITH (UPDLOCK, ROWLOCK)`). Backend lấy thời hạn từ `HOLD_DURATION_MINUTES` và trả về `expiresAtEpochMillis` để Android hiển thị thời gian còn lại.
 - `POST /api/v1/mobility/rides/start`: Quét mã QR (`vehicleCode`) mở khóa xe và khởi tạo `RideSession`.
 - `POST /api/v1/mobility/rides/{sessionId}/end`: Khóa xe, gán trạm trả được chỉ định hoặc trạm gần nhất, tính cước và phát trạng thái xe mới qua SSE. Thanh toán diễn ra sau khi cước đã được tính. Xem [trình tự mở khóa, trả xe và thanh toán](diagrams/fig_4_11_ride_sequence.png).
 - `PUT /api/v1/configurations/{id}`: Cập nhật tham số hệ thống với kiểm tra ràng buộc miền giá trị cho từng key (`HOLD_DURATION_MINUTES`, `LOW_BATTERY_THRESHOLD`, `DISTANCE_RATE_PER_KM`, `SEARCH_RADIUS_KM`) — trả về `400 Bad Request` nếu vượt ngưỡng hợp lệ và `404 Not Found` nếu không tồn tại.
