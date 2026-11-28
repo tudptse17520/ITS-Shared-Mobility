@@ -255,43 +255,30 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    // ==================== PATCH - Staff cập nhật thủ công ====================
     @Override
     public PaymentResponseDTO updatePaymentStatus(Long id, ManualStatusRequestDTO requestDTO) {
-        // 1. Find entity
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                 "Không tìm thấy giao dịch thanh toán với ID: " + id));
 
-        // 2. Check current status must be PENDING
         if (payment.getStatus() != PaymentStatus.PENDING) {
             throw new InvalidStateTransitionException(
                     "Giao dịch này đã ở trạng thái " + payment.getStatus() + ", không thể can thiệp thay đổi.");
         }
 
-        // 3. Validate audit note: not blank and minimum 10 characters
         if (requestDTO.getNote() == null || requestDTO.getNote().isBlank()
                 || requestDTO.getNote().trim().length() < 10) {
             throw new InvalidStateTransitionException(
-                    "Nhân viên bắt buộc phải nhập lý do chi tiết khi thao tác cập nhật thủ công.",
+                    "Lý do cập nhật thủ công phải có ít nhất 10 ký tự.",
                     "MISSING_AUDIT_NOTE");
         }
 
-        // 4. Parse and validate new status (only SUCCESS or FAILED allowed)
-        PaymentStatus newStatus;
-        try {
-            newStatus = requestDTO.getStatus();
-        } catch (IllegalArgumentException e) {
-            throw new BusinessRuleViolationException(
-                    "Trạng thái '" + requestDTO.getStatus() + "' không hợp lệ. Chỉ chấp nhận SUCCESS hoặc FAILED.");
-        }
-
+        PaymentStatus newStatus = requestDTO.getStatus();
         if (newStatus != PaymentStatus.SUCCESS && newStatus != PaymentStatus.FAILED) {
             throw new BusinessRuleViolationException(
                     "Chỉ được phép cập nhật thủ công sang trạng thái SUCCESS hoặc FAILED.");
         }
 
-        // 5. Update status
         payment.setStatus(newStatus);
         if (newStatus == PaymentStatus.SUCCESS) {
             payment.setPaymentTime(LocalDateTime.now());

@@ -9,8 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO for Operations Staff manual status update on a PENDING payment.
- * Requires status (SUCCESS or FAILED) and a mandatory audit note (minimum 10 characters).
+ * Quản trị viên có thể chuyển giao dịch đang chờ sang SUCCESS hoặc FAILED.
  */
 @Data
 @NoArgsConstructor
@@ -18,6 +17,6 @@ import lombok.NoArgsConstructor;
 public class ManualStatusRequestDTO {
     @NotNull(message = "Trạng thái mới không được để trống.")
     private PaymentStatus status;
-    @NotBlank(message = "Nhân viên bắt buộc phải nhập lý do chi tiết khi thao tác cập nhật thủ công.")
+    @NotBlank(message = "Lý do cập nhật thủ công không được để trống.")
     private String note;
 }

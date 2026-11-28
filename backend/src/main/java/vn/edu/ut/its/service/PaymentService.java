@@ -7,21 +7,15 @@ import vn.edu.ut.its.dto.response.PaymentResponseDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 
-/**
- * Service interface for Payment business logic.
- * Defines all operations for managing payments including
- * creation with E2/E3 validation, listing, detail view,
- * staff manual update, and cancellation.
- */
 public interface PaymentService {
 
     /**
      * Create a new payment transaction.
-     * Handles E2 (Fixed Fee Mismatch) and E3 (Overpayment Violation) validations.
+     * Validates the amount against the booking deposit or outstanding ride fare.
      * Cash payments are automatically set to SUCCESS.
      *
      * @param requestDTO the payment data from the client
-     * @param request the HTTP request for IP tracking
+     * @param request the HTTP request for VNPay payment details
      * @return the created payment as a response DTO
      */
     PaymentResponseDTO createPayment(PaymentRequestDTO requestDTO, HttpServletRequest request);
@@ -53,11 +47,11 @@ public interface PaymentService {
     vn.edu.ut.its.dto.response.PaymentDebtResponseDTO getRemainingDebt(Long sessionId);
 
     /**
-     * Staff manual update of a PENDING payment status.
-     * Validates that the payment is still PENDING and that the audit note is sufficient.
+     * Update a PENDING payment to SUCCESS or FAILED.
+     * Validates that the payment is still PENDING and that the reason has at least 10 characters.
      *
      * @param id         the payment ID to update
-     * @param requestDTO the new status and audit note
+     * @param requestDTO the new status and reason
      * @return the updated payment as a response DTO
      */
     PaymentResponseDTO updatePaymentStatus(Long id, ManualStatusRequestDTO requestDTO);
