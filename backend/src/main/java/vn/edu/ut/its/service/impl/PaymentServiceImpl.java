@@ -5,6 +5,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -63,7 +65,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final VnpayConfig vnpayConfig;
 
     private static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-    private static final DateTimeFormatter REQUEST_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private static final DateTimeFormatter REQUEST_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-uuuu")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     // ==================== CREATE - Tạo thanh toán ====================
     @Override
@@ -156,6 +159,15 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PaymentListResponseDTO getPayments(String paymentMethod, String status, String fromDate) {
+        PaymentMethod parsedMethod = null;
+        if (paymentMethod != null && !paymentMethod.isBlank()) {
+            try {
+                parsedMethod = PaymentMethod.fromString(paymentMethod);
+            } catch (IllegalArgumentException ex) {
+                throw new BusinessRuleViolationException("Phương thức thanh toán không hợp lệ.");
+            }
+        }
+
         // Convert status String to PaymentStatus enum (nullable)
         PaymentStatus parsedStatus = null;
         if (status != null && !status.isBlank()) {
@@ -170,11 +182,14 @@ public class PaymentServiceImpl implements PaymentService {
         // Convert fromDate String (DD-MM-YYYY) to LocalDateTime (nullable)
         LocalDateTime parsedFromDateTime = null;
         if (fromDate != null && !fromDate.isBlank()) {
-            LocalDate parsedFromDate = LocalDate.parse(fromDate, REQUEST_DATE_FORMAT);
-            parsedFromDateTime = parsedFromDate.atStartOfDay();
+            try {
+                parsedFromDateTime = LocalDate.parse(fromDate.trim(), REQUEST_DATE_FORMAT).atStartOfDay();
+            } catch (DateTimeParseException ex) {
+                throw new BusinessRuleViolationException("Ngày bắt đầu phải là ngày hợp lệ theo định dạng dd-MM-yyyy.");
+            }
         }
 
-        List<Payment> payments = paymentCustomRepository.findByFilters(paymentMethod, parsedStatus, parsedFromDateTime);
+        List<Payment> payments = paymentCustomRepository.findByFilters(parsedMethod, parsedStatus, parsedFromDateTime);
 
         User currentUser = SecurityUtils.getAuthenticatedUser(userRepository).orElse(null);
         if (currentUser != null && !SecurityUtils.isAdmin(currentUser)) {

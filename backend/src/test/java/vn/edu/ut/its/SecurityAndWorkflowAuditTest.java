@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -98,6 +100,22 @@ class SecurityAndWorkflowAuditTest {
         }
 
         assertEquals(paymentCount, paymentRepository.count());
+    }
+
+    @Test
+    void validatesPaymentFilters() throws Exception {
+        String token = bearerFor("admin");
+
+        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                        .param("paymentMethod", "cash"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isNotEmpty())
+                .andExpect(jsonPath("$.data[*].paymentMethod", everyItem(is("Cash"))));
+
+        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                        .param("fromDate", "31-02-2026"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("dd-MM-yyyy")));
     }
 
     @Test
