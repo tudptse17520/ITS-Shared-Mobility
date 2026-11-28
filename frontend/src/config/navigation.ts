@@ -4,13 +4,13 @@
 // ---------------------------------------------
 
 import { SquaresFourIcon as LayoutDashboard, UsersThreeIcon as Users, GearSixIcon as Settings, MapPinIcon as MapPin, BicycleIcon as Bike, CurrencyDollarIcon as DollarSign, ChatCircleDotsIcon as MessageSquareWarning, ChartBarIcon as BarChart3, CalendarCheckIcon as CalendarCheck, CarIcon as Car, UserCircleIcon as UserCircle } from "@phosphor-icons/react/ssr";
-import type { Icon as LucideIcon } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { Role } from "@/constants/role";
 
 export interface NavItem {
   title: string;
   href: string;
-  icon: LucideIcon;
+  icon: Icon;
   roles: Role[];
 }
 
@@ -100,7 +100,4 @@ export const DRIVER_NAV: NavItem[] = [
     roles: [Role.USER],
   },
 ];
-
-export const adminMenus = ADMIN_NAV;
-export const driverMenus = DRIVER_NAV;
 

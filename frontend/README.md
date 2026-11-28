@@ -4,7 +4,7 @@
 frontend/
 ├── public/              # Public static files (logos, global images, icons)
 ├── src/
-│   ├── app/             # App Router (pages, layouts, route groups, middleware)
+│   ├── app/             # App Router (pages, layouts, route groups)
 │   ├── components/      # Reusable UI components (ui/, common/, layouts/)
 │   ├── config/          # Environment, permissions, navigation menus
 │   ├── constants/       # Roles, statuses, and domain enums
@@ -33,7 +33,7 @@ frontend/
 
 ## Prerequisites
 - Node.js 20.9 or newer
-- npm, yarn, or pnpm
+- npm
 
 ## Setup & Run
 1. Navigate to the frontend directory:
@@ -42,14 +42,12 @@ frontend/
    ```
 2. Install dependencies:
    ```bash
-   npm install
-   # or yarn install / pnpm install
+   npm ci
    ```
 3. Set up environment variables:
-   Set `NEXT_PUBLIC_API_URL` in `.env.local` if the backend uses a different URL from `http://localhost:8080/api/v1`. Set `NEXT_PUBLIC_VIETMAP_API_KEY` to display the VietMap basemap.
+   Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_API_URL` if the backend uses a different URL from `http://localhost:8080/api/v1`. Set `NEXT_PUBLIC_VIETMAP_API_KEY` to use the VietMap basemap.
 4. Start the development server:
    ```bash
    npm run dev
-   # or yarn dev / pnpm dev
    ```
 The frontend application will start on `http://localhost:3000`.

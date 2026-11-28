@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="24.7.17" type="device">
+  <diagram id="fig-3-1-usecase" name="Hình 3.1 - Sơ đồ ca sử dụng tổng quát">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1060" pageHeight="680" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sys_boundary" value="ITS-Shared-Mobility — Hệ thống cho thuê phương tiện chia sẻ" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fontStyle=1;fontSize=13;spacingTop=10;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="700" height="640" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_user" value="&lt;b&gt;Khách thuê&lt;/b&gt;&lt;br&gt;USER · Android" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="50" y="265" width="40" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_admin" value="&lt;b&gt;Quản trị viên&lt;/b&gt;&lt;br&gt;ADMIN · Web" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="970" y="265" width="40" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_auth" value="Đăng nhập (JWT)" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="395" y="68" width="270" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_u1" value="Tìm trạm và xe gần vị trí hiện tại" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="212" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_register" value="Đăng ký tài khoản khách thuê" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="140" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u1" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u1">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_u2" value="Đặt giữ hoặc hủy giữ xe" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="284" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u2" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u2">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_u3" value="Quét mã QR để mở khóa và bắt đầu chuyến" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="356" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u3" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u3">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_u4" value="Theo dõi GPS và mô phỏng di chuyển" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="428" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u4" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u4">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_u5" value="Kết thúc chuyến và thanh toán VNPay" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="500" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u5" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u5">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_u6" value="Xem lịch sử chuyến đi" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="215" y="572" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_u6" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_u6">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a1" value="Giám sát đội xe trên bản đồ (SSE)" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="152" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a1" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a1">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a2" value="Điều khiển IoT và hiển thị mã QR" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="224" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a2" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a2">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a3" value="Quản lý trạm, loại xe và bảng giá" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="296" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a3" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a3">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a4" value="Quản lý tài khoản và lượt giữ xe" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="368" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a4" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a4">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a5" value="Xem báo cáo và xử lý phản ánh" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="440" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a5" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a5">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc_a6" value="Quản lý cấu hình hệ thống" style="ellipse;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="575" y="512" width="270" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="e_uc_a6" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_a6">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_user_auth" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_auth">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="140" y="95" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_admin_auth" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=0;exitY=0.3333333333333333;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="uc_auth">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="95" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_user_register" value="" style="endArrow=none;html=1;rounded=0;strokeColor=#000000;exitX=1;exitY=0.3333333333333333;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="uc_register">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

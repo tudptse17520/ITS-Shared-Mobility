@@ -5,6 +5,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -63,34 +65,33 @@ public class PaymentServiceImpl implements PaymentService {
     private final VnpayConfig vnpayConfig;
 
     private static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-    private static final DateTimeFormatter REQUEST_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private static final DateTimeFormatter REQUEST_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-uuuu")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     // ==================== CREATE - Tạo thanh toán ====================
     @Override
     public PaymentResponseDTO createPayment(PaymentRequestDTO requestDTO, HttpServletRequest request) {
-        // 1. Validate mutual exclusivity: phải có đúng 1 trong rideSessionId hoặc bookingId
         validateMutualExclusivity(requestDTO);
 
-        // 2. Validate fee_type enum
         FeeType feeType = requestDTO.getFeeType();
         if (feeType == FeeType.HISTORICAL_ADJUSTMENT) {
             throw new BusinessRuleViolationException("Hệ thống chỉ nhận thanh toán cước chuyến đi hoặc tiền cọc đặt giữ xe.");
         }
 
-        // 3. Validate cross-mapping: fee_type MUST match the provided ID type
         if (requestDTO.getBookingId() != null && feeType != FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho đơn đặt chỗ (booking_id), loại phí bắt buộc phải là BOOKING_DEPOSIT.");
+                    "Loại phí của lượt đặt giữ phải là BOOKING_DEPOSIT.");
         }
         if (requestDTO.getRideSessionId() != null && feeType == FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho chuyến đi (ride_session_id), loại phí không được là BOOKING_DEPOSIT.");
+                    "Loại phí của chuyến đi phải là RIDE_FEE.");
         }
 
-        // 4. Validate payment_method enum
         PaymentMethod paymentMethod = requestDTO.getPaymentMethod();
+        if (paymentMethod != PaymentMethod.Cash && paymentMethod != PaymentMethod.Vnpay) {
+            throw new BusinessRuleViolationException("Phương thức thanh toán được hỗ trợ: tiền mặt hoặc VNPay.");
+        }
 
-        // 5. E3 Check (Overpayment Violation) - Ride_Fee
         RideSession rideSession = null;
         Booking booking = null;
 
@@ -115,7 +116,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (requestDTO.getBookingId() != null) {
             booking = bookingRepository.findById(requestDTO.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                    "Không tìm thấy đơn đặt chỗ với ID: " + requestDTO.getBookingId()));
+                    "Không tìm thấy lượt đặt giữ với ID: " + requestDTO.getBookingId()));
 
             SecurityUtils.assertAdminOrOwner(
                     booking.getUser() != null ? booking.getUser().getId() : null,
@@ -128,36 +129,25 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        // 6. Build Payment entity
         Payment payment = Payment.builder()
                 .amount(requestDTO.getAmount())
-                .paymentMethod(requestDTO.getPaymentMethod())
+                .paymentMethod(paymentMethod)
                 .feeType(feeType)
                 .rideSession(rideSession)
                 .booking(booking)
-                .status(PaymentStatus.PENDING)
+                .status(paymentMethod == PaymentMethod.Cash ? PaymentStatus.SUCCESS : PaymentStatus.PENDING)
+                .paymentTime(LocalDateTime.now())
                 .build();
 
-        // 7. Cash → auto SUCCESS + paymentTime = now()
-        if (paymentMethod == PaymentMethod.Cash) {
-            payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setPaymentTime(LocalDateTime.now());
-        } else {
-            payment.setPaymentTime(LocalDateTime.now());
-        }
-
-        // 8. Save to DB
         Payment savedPayment = paymentRepository.save(payment);
 
         PaymentResponseDTO responseDTO = mapToResponseDTO(savedPayment);
 
-        // 9. Generate VNPAY URL if Vnpay method is selected
         if (paymentMethod == PaymentMethod.Vnpay) {
             String vnpayUrl = generateVnpayUrl(savedPayment, request);
             responseDTO.setPaymentUrl(vnpayUrl);
         }
 
-        // 10. Auto-complete RideSession if fully paid (for Cash payments)
         if (savedPayment.getStatus() == PaymentStatus.SUCCESS && savedPayment.getRideSession() != null) {
             checkAndCompleteRideSession(savedPayment.getRideSession());
         }
@@ -169,6 +159,15 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PaymentListResponseDTO getPayments(String paymentMethod, String status, String fromDate) {
+        PaymentMethod parsedMethod = null;
+        if (paymentMethod != null && !paymentMethod.isBlank()) {
+            try {
+                parsedMethod = PaymentMethod.fromString(paymentMethod);
+            } catch (IllegalArgumentException ex) {
+                throw new BusinessRuleViolationException("Phương thức thanh toán không hợp lệ.");
+            }
+        }
+
         // Convert status String to PaymentStatus enum (nullable)
         PaymentStatus parsedStatus = null;
         if (status != null && !status.isBlank()) {
@@ -183,11 +182,14 @@ public class PaymentServiceImpl implements PaymentService {
         // Convert fromDate String (DD-MM-YYYY) to LocalDateTime (nullable)
         LocalDateTime parsedFromDateTime = null;
         if (fromDate != null && !fromDate.isBlank()) {
-            LocalDate parsedFromDate = LocalDate.parse(fromDate, REQUEST_DATE_FORMAT);
-            parsedFromDateTime = parsedFromDate.atStartOfDay();
+            try {
+                parsedFromDateTime = LocalDate.parse(fromDate.trim(), REQUEST_DATE_FORMAT).atStartOfDay();
+            } catch (DateTimeParseException ex) {
+                throw new BusinessRuleViolationException("Ngày bắt đầu phải là ngày hợp lệ theo định dạng dd-MM-yyyy.");
+            }
         }
 
-        List<Payment> payments = paymentCustomRepository.findByFilters(paymentMethod, parsedStatus, parsedFromDateTime);
+        List<Payment> payments = paymentCustomRepository.findByFilters(parsedMethod, parsedStatus, parsedFromDateTime);
 
         User currentUser = SecurityUtils.getAuthenticatedUser(userRepository).orElse(null);
         if (currentUser != null && !SecurityUtils.isAdmin(currentUser)) {
@@ -253,43 +255,30 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    // ==================== PATCH - Staff cập nhật thủ công ====================
     @Override
     public PaymentResponseDTO updatePaymentStatus(Long id, ManualStatusRequestDTO requestDTO) {
-        // 1. Find entity
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                 "Không tìm thấy giao dịch thanh toán với ID: " + id));
 
-        // 2. Check current status must be PENDING
         if (payment.getStatus() != PaymentStatus.PENDING) {
             throw new InvalidStateTransitionException(
                     "Giao dịch này đã ở trạng thái " + payment.getStatus() + ", không thể can thiệp thay đổi.");
         }
 
-        // 3. Validate audit note: not blank and minimum 10 characters
         if (requestDTO.getNote() == null || requestDTO.getNote().isBlank()
                 || requestDTO.getNote().trim().length() < 10) {
             throw new InvalidStateTransitionException(
-                    "Nhân viên bắt buộc phải nhập lý do chi tiết khi thao tác cập nhật thủ công.",
+                    "Lý do cập nhật thủ công phải có ít nhất 10 ký tự.",
                     "MISSING_AUDIT_NOTE");
         }
 
-        // 4. Parse and validate new status (only SUCCESS or FAILED allowed)
-        PaymentStatus newStatus;
-        try {
-            newStatus = requestDTO.getStatus();
-        } catch (IllegalArgumentException e) {
-            throw new BusinessRuleViolationException(
-                    "Trạng thái '" + requestDTO.getStatus() + "' không hợp lệ. Chỉ chấp nhận SUCCESS hoặc FAILED.");
-        }
-
+        PaymentStatus newStatus = requestDTO.getStatus();
         if (newStatus != PaymentStatus.SUCCESS && newStatus != PaymentStatus.FAILED) {
             throw new BusinessRuleViolationException(
                     "Chỉ được phép cập nhật thủ công sang trạng thái SUCCESS hoặc FAILED.");
         }
 
-        // 5. Update status
         payment.setStatus(newStatus);
         if (newStatus == PaymentStatus.SUCCESS) {
             payment.setPaymentTime(LocalDateTime.now());

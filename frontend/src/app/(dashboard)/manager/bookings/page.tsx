@@ -69,7 +69,7 @@ export default function ManagerBookingsPage() {
     <PageContainer>
       <PageHeader
         title="Quản lý Đặt giữ & Chuyến đi"
-        description="Theo dõi lịch sử đặt giữ xe 15 phút từ ứng dụng di động khách thuê."
+        description="Theo dõi lượt giữ xe và trạng thái chuyến đi của khách thuê."
       />
 
       <Toolbar>

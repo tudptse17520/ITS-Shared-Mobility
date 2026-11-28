@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRightIcon, BatteryWarningIcon, BicycleIcon, BuildingsIcon, MapPinIcon, NavigationArrowIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, BatteryWarningIcon, BicycleIcon, CheckCircleIcon, MapPinIcon, NavigationArrowIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { motion, useReducedMotion, useSpring, useTransform } from "framer-motion";
@@ -54,9 +54,9 @@ export default function AdminDashboardPage() {
 
   const metrics = [
     { label: "Xe trong đội", value: vehicles?.length, Icon: BicycleIcon, tone: "fleet" },
-    { label: "Sẵn sàng", value: available, Icon: MapPinIcon, tone: "ready" },
+    { label: "Sẵn sàng", value: available, Icon: CheckCircleIcon, tone: "ready" },
     { label: "Đang cho thuê", value: inUse, Icon: NavigationArrowIcon, tone: "trip" },
-    { label: "Trạm xe", value: stations?.length, Icon: BuildingsIcon, tone: "station" },
+    { label: "Trạm xe", value: stations?.length, Icon: MapPinIcon, tone: "station" },
   ];
   const warnings = [
     { label: "Pin yếu", value: lowBattery, Icon: BatteryWarningIcon, tone: "station" },

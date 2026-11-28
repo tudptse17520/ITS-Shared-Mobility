@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -140,9 +141,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                     + " đang yếu pin (" + vehicle.getBatteryLevel() + "%), vui lòng chọn xe khác.");
         }
 
-        int holdMinutes = (request.getHoldMinutes() != null && request.getHoldMinutes() > 0)
-                ? request.getHoldMinutes()
-                : runtimeConfigProvider.getHoldDurationMinutes();
+        int holdMinutes = runtimeConfigProvider.getHoldDurationMinutes();
 
         vehicle.setFleetStatus("RESERVED");
         vehicleRepository.save(vehicle);
@@ -165,6 +164,7 @@ public class SharedMobilityServiceImpl implements SharedMobilityService {
                 .id(savedBooking.getId())
                 .status(savedBooking.getStatus())
                 .message("Đặt giữ xe " + vehicle.getVehicleCode() + " thành công trong " + holdMinutes + " phút.")
+                .expiresAtEpochMillis(savedBooking.getExpiredAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
     }
 

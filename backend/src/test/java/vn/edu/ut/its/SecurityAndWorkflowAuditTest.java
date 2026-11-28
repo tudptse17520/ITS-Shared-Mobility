@@ -35,9 +35,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -78,6 +81,41 @@ class SecurityAndWorkflowAuditTest {
     private String bearerFor(String username) {
         User u = userRepository.findByUsername(username).orElseThrow();
         return "Bearer " + jwtUtil.generateToken(u.getUsername(), u.getRole().name());
+    }
+
+    @Test
+    void rejectsUnsupportedPaymentMethodsWithoutCreatingTransactions() throws Exception {
+        String token = bearerFor("user");
+        long paymentCount = paymentRepository.count();
+
+        for (PaymentMethod method : List.of(PaymentMethod.Momo, PaymentMethod.Credit_Card)) {
+            PaymentRequestDTO payment = new PaymentRequestDTO(1L, null, BigDecimal.valueOf(10000),
+                    method, FeeType.RIDE_FEE);
+            mockMvc.perform(post("/api/v1/payments")
+                            .header("Authorization", token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(payment)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message", containsString("tiền mặt hoặc VNPay")));
+        }
+
+        assertEquals(paymentCount, paymentRepository.count());
+    }
+
+    @Test
+    void validatesPaymentFilters() throws Exception {
+        String token = bearerFor("admin");
+
+        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                        .param("paymentMethod", "cash"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isNotEmpty())
+                .andExpect(jsonPath("$.data[*].paymentMethod", everyItem(is("Cash"))));
+
+        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                        .param("fromDate", "31-02-2026"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("dd-MM-yyyy")));
     }
 
     @Test
@@ -144,7 +182,7 @@ class SecurityAndWorkflowAuditTest {
         mockMvc.perform(post("/api/v1/mobility/reserve")
                         .header("Authorization", userToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"vehicleId\":" + vehicle.getId() + ",\"holdMinutes\":15}"))
+                        .content("{\"vehicleId\":" + vehicle.getId() + "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
@@ -226,7 +264,6 @@ class SecurityAndWorkflowAuditTest {
         var bookingDto = mobilityService.reserveVehicle(ReserveVehicleRequestDTO.builder()
                 .vehicleId(vehicle.getId())
                 .userId(user.getId())
-                .holdMinutes(10)
                 .build());
 
         Booking booking = bookingRepository.findById(bookingDto.getId()).orElseThrow();

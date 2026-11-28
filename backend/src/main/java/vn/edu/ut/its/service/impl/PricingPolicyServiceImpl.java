@@ -23,13 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Implementation of PricingPolicyService.
- * Xử lý toàn bộ nghiệp vụ CRUD và các ngoại lệ E1, E2, E3 cho module Quản lý bảng giá.
- *
- * E3 check: Sử dụng RideSessionRepository có sẵn (không sửa code cũ).
- * Kiểm tra qua vehicle type xem có RideSession nào đang IN_PROGRESS hoặc COMPLETED.
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -38,8 +31,6 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
     private final PricingPolicyCrudRepository pricingPolicyCrudRepository;
     private final VehicleTypeRepository vehicleTypeRepository;
     private final RideSessionRepository rideSessionRepository;
-
-    // ==================== GET - Lấy danh sách / Tìm kiếm ====================
 
     @Override
     @Transactional(readOnly = true)
@@ -59,7 +50,6 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getPricingPoliciesByVehicleTypeId(Long vehicleTypeId) {
-        // Lọc theo loại xe cụ thể
         List<PricingPolicy> policies = pricingPolicyCrudRepository.findByVehicleType_Id(vehicleTypeId);
 
         List<PricingPolicyResponseDTO> data = policies.stream()
@@ -76,25 +66,19 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
         return response;
     }
 
-    // ==================== POST - Thêm mới ====================
-
     @Override
     public Map<String, Object> createPricingPolicy(PricingPolicyRequestDTO requestDTO) {
-        // Kiểm tra VehicleType có tồn tại không
         VehicleType vehicleType = vehicleTypeRepository.findById(requestDTO.getVehicleTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         MessageConstants.VEHICLE_TYPE_NOT_FOUND + requestDTO.getVehicleTypeId()));
 
-        // Convert LocalDate từ DTO sang LocalDateTime cho Entity
         LocalDateTime effectiveDateTime = requestDTO.getEffectiveDate().atStartOfDay();
 
-        // E2: Kiểm tra trùng lặp ngày áp dụng của cùng loại xe
         if (pricingPolicyCrudRepository.existsByVehicleType_IdAndEffectiveDate(
                 requestDTO.getVehicleTypeId(), effectiveDateTime)) {
             throw new ConflictException(MessageConstants.PRICING_POLICY_DUPLICATE);
         }
 
-        // Tạo entity mới và lưu vào DB
         PricingPolicy pricingPolicy = PricingPolicy.builder()
                 .vehicleType(vehicleType)
                 .basePrice(requestDTO.getBasePrice())
@@ -105,42 +89,32 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
 
         PricingPolicy savedPolicy = pricingPolicyCrudRepository.save(pricingPolicy);
 
-        // Trả về response theo API Contract: { id, message }
         Map<String, Object> response = new HashMap<>();
         response.put("id", savedPolicy.getId());
         response.put("message", MessageConstants.PRICING_POLICY_CREATE_SUCCESS);
         return response;
     }
 
-    // ==================== PUT - Cập nhật ====================
-
     @Override
     public Map<String, Object> updatePricingPolicy(Long id, PricingPolicyRequestDTO requestDTO) {
-        // Tìm entity theo ID
         PricingPolicy pricingPolicy = pricingPolicyCrudRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         MessageConstants.PRICING_POLICY_NOT_FOUND + id));
 
-        // E3: Kiểm tra ràng buộc dữ liệu - không cập nhật nếu loại xe của bảng giá này
-        // đang có RideSession IN_PROGRESS
         checkRideSessionConstraint(pricingPolicy.getVehicleType().getId(),
                 MessageConstants.PRICING_POLICY_IN_USE_UPDATE);
 
-        // Kiểm tra VehicleType mới có tồn tại không
         VehicleType vehicleType = vehicleTypeRepository.findById(requestDTO.getVehicleTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         MessageConstants.VEHICLE_TYPE_NOT_FOUND + requestDTO.getVehicleTypeId()));
 
-        // Convert LocalDate từ DTO sang LocalDateTime cho Entity
         LocalDateTime effectiveDateTime = requestDTO.getEffectiveDate().atStartOfDay();
 
-        // E2: Kiểm tra trùng lặp ngày áp dụng (loại trừ bản ghi hiện tại)
         if (pricingPolicyCrudRepository.existsByVehicleType_IdAndEffectiveDateAndIdNot(
                 requestDTO.getVehicleTypeId(), effectiveDateTime, id)) {
             throw new ConflictException(MessageConstants.PRICING_POLICY_DUPLICATE);
         }
 
-        // Cập nhật thông tin
         pricingPolicy.setVehicleType(vehicleType);
         pricingPolicy.setBasePrice(requestDTO.getBasePrice());
         pricingPolicy.setExtraFeePerHour(requestDTO.getExtraFeePerHour());
@@ -151,46 +125,29 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
 
         PricingPolicy updatedPolicy = pricingPolicyCrudRepository.save(pricingPolicy);
 
-        // Trả về response theo API Contract: { id, message }
         Map<String, Object> response = new HashMap<>();
         response.put("id", updatedPolicy.getId());
         response.put("message", MessageConstants.PRICING_POLICY_UPDATE_SUCCESS);
         return response;
     }
 
-    // ==================== DELETE - Xóa ====================
-
     @Override
     public Map<String, Object> deletePricingPolicy(Long id) {
-        // Tìm entity theo ID
         PricingPolicy pricingPolicy = pricingPolicyCrudRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         MessageConstants.PRICING_POLICY_NOT_FOUND + id));
 
-        // E3: Kiểm tra ràng buộc dữ liệu - không xóa nếu loại xe của bảng giá này
-        // đang có RideSession IN_PROGRESS
         checkRideSessionConstraint(pricingPolicy.getVehicleType().getId(),
                 MessageConstants.PRICING_POLICY_IN_USE_DELETE);
 
-        // Xóa bản ghi khỏi DB
         pricingPolicyCrudRepository.delete(pricingPolicy);
 
-        // Trả về response theo API Contract: { message }
         Map<String, Object> response = new HashMap<>();
         response.put("message", MessageConstants.PRICING_POLICY_DELETE_SUCCESS);
         return response;
     }
 
-    // ==================== Helper ====================
-
-    /**
-     * Kiểm tra ràng buộc E3: xem có RideSession nào đang IN_PROGRESS
-     * cho loại xe của bảng giá này không. (Đã nới lỏng: bỏ qua COMPLETED)
-     * Sử dụng RideSessionRepository có sẵn.
-     *
-     * @param vehicleTypeId mã loại xe cần kiểm tra
-     * @param errorMessage  thông báo lỗi nếu vi phạm ràng buộc
-     */
+    // Giữ bảng giá ổn định cho các chuyến đi đang diễn ra.
     private void checkRideSessionConstraint(Long vehicleTypeId, String errorMessage) {
         boolean hasInProgressSession = rideSessionRepository
                 .existsByVehicle_VehicleType_IdAndStatusAndEndedAtIsNull(vehicleTypeId, RideSessionStatus.IN_PROGRESS);
@@ -200,10 +157,6 @@ public class PricingPolicyServiceImpl implements PricingPolicyService {
         }
     }
 
-    /**
-     * Map PricingPolicy entity sang PricingPolicyResponseDTO.
-     * Convert LocalDateTime (entity) sang LocalDate (DTO) cho format DD-MM-YYYY.
-     */
     private PricingPolicyResponseDTO mapToResponseDTO(PricingPolicy pricingPolicy) {
         return PricingPolicyResponseDTO.builder()
                 .id(pricingPolicy.getId())

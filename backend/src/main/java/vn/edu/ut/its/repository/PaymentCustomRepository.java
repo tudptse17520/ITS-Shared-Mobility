@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import vn.edu.ut.its.constant.PaymentMethod;
 import vn.edu.ut.its.constant.PaymentStatus;
 import vn.edu.ut.its.entity.Payment;
 
@@ -20,8 +21,7 @@ import vn.edu.ut.its.entity.Payment;
 public interface PaymentCustomRepository extends JpaRepository<Payment, Long> {
 
     /**
-     * Sum all successful payment amounts for a given ride session. Used for
-     * E3 (Overpayment Violation) check.
+     * Sum successful fare payments for a ride.
      *
      * @param sessionId the ride session ID
      * @return total amount of successful payments, or BigDecimal.ZERO if none
@@ -53,7 +53,7 @@ public interface PaymentCustomRepository extends JpaRepository<Payment, Long> {
             + "(:status IS NULL OR p.status = :status) AND "
             + "(:fromDateTime IS NULL OR p.paymentTime >= :fromDateTime) "
             + "ORDER BY p.paymentTime DESC")
-    List<Payment> findByFilters(@Param("paymentMethod") String paymentMethod,
+    List<Payment> findByFilters(@Param("paymentMethod") PaymentMethod paymentMethod,
             @Param("status") PaymentStatus status,
             @Param("fromDateTime") LocalDateTime fromDateTime);
 }

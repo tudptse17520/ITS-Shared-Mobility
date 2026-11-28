@@ -1,6 +1,6 @@
 import axiosClient from '@/lib/axios-client';
 
-import type { StationResponse, StationListResponse, StationActionResponse } from '@/types/station.type';
+import type { StationListResponse, StationActionResponse } from '@/types/station.type';
 import type { StationCreateForm, StationUpdateForm } from '@/features/stations/schemas/station-form.schema';
 
 const STATION_API_URL = `/stations`;
@@ -11,11 +11,6 @@ export const getStations = async (keyword?: string, status?: string): Promise<St
   if (status && status !== 'ALL') params.status = status;
 
   const response = await axiosClient.get<StationListResponse>(STATION_API_URL, { params });
-  return response.data;
-};
-
-export const getStationDetail = async (id: number): Promise<StationResponse> => {
-  const response = await axiosClient.get<StationResponse>(`${STATION_API_URL}/${id}`);
   return response.data;
 };
 
