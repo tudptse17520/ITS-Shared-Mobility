@@ -219,10 +219,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             clearMessages()
             try {
                 val res = RetrofitClient.api.reserveVehicle(ReserveRequest(vehicle.id, currentUser?.id))
-                if (res.isSuccessful && res.body() != null) {
-                    statusMessage = res.body()!!.message
+                val reservation = res.body()
+                if (res.isSuccessful && reservation != null) {
+                    statusMessage = reservation.message
                     reservedVehicleId = vehicle.id
-                    reservationExpiresAtMillis = System.currentTimeMillis() + 15 * 60_000L
+                    reservationExpiresAtMillis = reservation.expiresAtEpochMillis
                     refreshFleet()
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Đặt giữ xe thất bại")
