@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
@@ -78,6 +79,25 @@ class SecurityAndWorkflowAuditTest {
     private String bearerFor(String username) {
         User u = userRepository.findByUsername(username).orElseThrow();
         return "Bearer " + jwtUtil.generateToken(u.getUsername(), u.getRole().name());
+    }
+
+    @Test
+    void rejectsUnsupportedPaymentMethodsWithoutCreatingTransactions() throws Exception {
+        String token = bearerFor("user");
+        long paymentCount = paymentRepository.count();
+
+        for (PaymentMethod method : List.of(PaymentMethod.Momo, PaymentMethod.Credit_Card)) {
+            PaymentRequestDTO payment = new PaymentRequestDTO(1L, null, BigDecimal.valueOf(10000),
+                    method, FeeType.RIDE_FEE);
+            mockMvc.perform(post("/api/v1/payments")
+                            .header("Authorization", token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(payment)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message", containsString("tiền mặt hoặc VNPay")));
+        }
+
+        assertEquals(paymentCount, paymentRepository.count());
     }
 
     @Test

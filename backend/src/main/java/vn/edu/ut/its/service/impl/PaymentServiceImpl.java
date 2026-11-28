@@ -68,29 +68,27 @@ public class PaymentServiceImpl implements PaymentService {
     // ==================== CREATE - Tạo thanh toán ====================
     @Override
     public PaymentResponseDTO createPayment(PaymentRequestDTO requestDTO, HttpServletRequest request) {
-        // 1. Validate mutual exclusivity: phải có đúng 1 trong rideSessionId hoặc bookingId
         validateMutualExclusivity(requestDTO);
 
-        // 2. Validate fee_type enum
         FeeType feeType = requestDTO.getFeeType();
         if (feeType == FeeType.HISTORICAL_ADJUSTMENT) {
             throw new BusinessRuleViolationException("Hệ thống chỉ nhận thanh toán cước chuyến đi hoặc tiền cọc đặt giữ xe.");
         }
 
-        // 3. Validate cross-mapping: fee_type MUST match the provided ID type
         if (requestDTO.getBookingId() != null && feeType != FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho đơn đặt chỗ (booking_id), loại phí bắt buộc phải là BOOKING_DEPOSIT.");
+                    "Loại phí của lượt đặt giữ phải là BOOKING_DEPOSIT.");
         }
         if (requestDTO.getRideSessionId() != null && feeType == FeeType.BOOKING_DEPOSIT) {
             throw new BusinessRuleViolationException(
-                    "Giao dịch sai: Khi thanh toán cho chuyến đi (ride_session_id), loại phí không được là BOOKING_DEPOSIT.");
+                    "Loại phí của chuyến đi phải là RIDE_FEE.");
         }
 
-        // 4. Validate payment_method enum
         PaymentMethod paymentMethod = requestDTO.getPaymentMethod();
+        if (paymentMethod != PaymentMethod.Cash && paymentMethod != PaymentMethod.Vnpay) {
+            throw new BusinessRuleViolationException("Phương thức thanh toán được hỗ trợ: tiền mặt hoặc VNPay.");
+        }
 
-        // 5. E3 Check (Overpayment Violation) - Ride_Fee
         RideSession rideSession = null;
         Booking booking = null;
 
@@ -115,7 +113,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (requestDTO.getBookingId() != null) {
             booking = bookingRepository.findById(requestDTO.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                    "Không tìm thấy đơn đặt chỗ với ID: " + requestDTO.getBookingId()));
+                    "Không tìm thấy lượt đặt giữ với ID: " + requestDTO.getBookingId()));
 
             SecurityUtils.assertAdminOrOwner(
                     booking.getUser() != null ? booking.getUser().getId() : null,
@@ -128,36 +126,25 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        // 6. Build Payment entity
         Payment payment = Payment.builder()
                 .amount(requestDTO.getAmount())
-                .paymentMethod(requestDTO.getPaymentMethod())
+                .paymentMethod(paymentMethod)
                 .feeType(feeType)
                 .rideSession(rideSession)
                 .booking(booking)
-                .status(PaymentStatus.PENDING)
+                .status(paymentMethod == PaymentMethod.Cash ? PaymentStatus.SUCCESS : PaymentStatus.PENDING)
+                .paymentTime(LocalDateTime.now())
                 .build();
 
-        // 7. Cash → auto SUCCESS + paymentTime = now()
-        if (paymentMethod == PaymentMethod.Cash) {
-            payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setPaymentTime(LocalDateTime.now());
-        } else {
-            payment.setPaymentTime(LocalDateTime.now());
-        }
-
-        // 8. Save to DB
         Payment savedPayment = paymentRepository.save(payment);
 
         PaymentResponseDTO responseDTO = mapToResponseDTO(savedPayment);
 
-        // 9. Generate VNPAY URL if Vnpay method is selected
         if (paymentMethod == PaymentMethod.Vnpay) {
             String vnpayUrl = generateVnpayUrl(savedPayment, request);
             responseDTO.setPaymentUrl(vnpayUrl);
         }
 
-        // 10. Auto-complete RideSession if fully paid (for Cash payments)
         if (savedPayment.getStatus() == PaymentStatus.SUCCESS && savedPayment.getRideSession() != null) {
             checkAndCompleteRideSession(savedPayment.getRideSession());
         }

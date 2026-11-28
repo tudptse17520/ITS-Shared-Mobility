@@ -2,14 +2,12 @@ package vn.edu.ut.its.constant;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * Enum hình thức thanh toán.
- * Cash = tiền mặt, Momo = ví MoMo, Vnpay = cổng VNPay, Credit_Card = thẻ tín dụng.
- */
 public enum PaymentMethod {
     Cash,
+    // Retained for reading historical payment records.
     Momo,
     Vnpay,
+    // Retained for reading historical payment records.
     Credit_Card;
 
     @JsonCreator
