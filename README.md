@@ -25,7 +25,7 @@ ITS-Shared-Mobility/
 > **Lưu ý bảo mật:** Không commit file `.env`, `.env.local`, hay `local.properties` lên Git. Sử dụng các file `.example` đi kèm làm mẫu.
 
 ### 1. Backend (`backend/`)
-- Yêu cầu: **JDK 17**, **SQL Server 2022** (hoặc Azure SQL Edge / Docker SQL Server).
+- Yêu cầu: **JDK 17** và **SQL Server 2022**. Nếu tái sử dụng cơ sở dữ liệu từ phiên bản cũ, xem [hướng dẫn nâng cấp lược đồ](backend/README.md#upgrade-an-existing-database).
 - Sao chép cấu hình mẫu:
   ```bash
   cp backend/.env.example backend/.env
@@ -34,16 +34,18 @@ ITS-Shared-Mobility/
   - `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`: Chuỗi kết nối SQL Server (chạy trên DB sạch; Spring Data JPA / Hibernate tự động khởi tạo lược đồ `ddl-auto=update` kèm `open-in-view=false`).
   - `JWT_SECRET`: Khóa bí mật JWT (tối thiểu 32 ký tự).
   - `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`: Cấu hình cổng thanh toán VNPay Sandbox (không có giá trị mặc định nhạy cảm trong source).
-  - `ITS_DEMO_SEED` (tùy chọn, mặc định `false`): Đặt `true` nếu muốn tự động seed dữ liệu mẫu (trạm xe, phương tiện, chính sách giá, tài khoản demo).
+  - `APP_SECURITY_REQUIRE_AUTH` (mặc định `true`): Giữ xác thực JWT cho API và các luồng SSE được bảo vệ.
+  - `ITS_DEMO_SEED` (mặc định `false`): Chỉ bật `true` trên cơ sở dữ liệu demo dùng riêng. Trình tạo dữ liệu mẫu đặt lại dữ liệu khi chạy.
 - Chạy Backend & bộ kiểm thử:
   ```bash
   cd backend
   ./mvnw spring-boot:run
   ./mvnw test
   ```
+  Khi chạy bộ test, trỏ `DB_URL` đến một cơ sở dữ liệu kiểm thử dùng riêng. Trên Windows PowerShell, dùng `.\mvnw.cmd`.
 
 ### 2. Web Admin & Driver Portal (`frontend/`)
-- Yêu cầu: **Node.js >= 20**.
+- Yêu cầu: **Node.js 20.9 trở lên**. CI dùng Node.js 22.
 - Sao chép biến môi trường mẫu:
   ```bash
   cp frontend/.env.example frontend/.env.local
@@ -78,4 +80,8 @@ Workflow CI tại [.github/workflows/ci.yml](.github/workflows/ci.yml) tự đ�
 - `backend`: SQL Server 2022 container (`mcr.microsoft.com/mssql/server:2022-latest`), tạo DB sạch, chạy toàn bộ `./mvnw test` (khởi tạo lược đồ DB sạch qua JPA/Hibernate, bảo mật JWT/SSE, `SystemConfig` runtime, concurrency Pessimistic Lock, vòng đời chuyến đi).
 - `android`: `./gradlew :app:testDebugUnitTest :app:assembleDebug`
 
-Xem chi tiết kiến trúc và kết quả kiểm thử trong [docs/BAO_CAO_THUC_NGHIEM_ITS.md](docs/BAO_CAO_THUC_NGHIEM_ITS.md).
+## Tài liệu dự án
+
+- [Phạm vi nghiệp vụ](docs/PHAM_VI_NGHIEP_VU_ITS.md) và [báo cáo thực nghiệm](docs/BAO_CAO_THUC_NGHIEM_ITS.md).
+- Sơ đồ [ca sử dụng](docs/diagrams/fig_3_1_usecase.png), [kiến trúc](docs/diagrams/fig_3_2_architecture.png), [thực thể và liên kết](docs/diagrams/fig_3_3_erd.png) và [trình tự chuyến đi](docs/diagrams/fig_4_11_ride_sequence.png). Mỗi sơ đồ có tệp `.drawio` cùng tên để chỉnh sửa.
+- [Video demo ứng dụng Android](docs/recordings/mobile_its_test.mp4).
