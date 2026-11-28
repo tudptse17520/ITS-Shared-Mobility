@@ -317,6 +317,10 @@ fun HomeMapScreen(viewModel: MainViewModel) {
             isLoading = viewModel.isLoadingHistory,
             vndFormat = currency,
             onDismiss = { sheet = FleetSheet.NONE },
+            onPayRide = { ride ->
+                sheet = FleetSheet.NONE
+                viewModel.openRideForPayment(ride)
+            },
             onReportIssue = { ride ->
                 sheet = FleetSheet.NONE
                 feedbackSessionTarget = ride
@@ -532,6 +536,7 @@ private fun RideHistoryDialog(
     isLoading: Boolean,
     vndFormat: NumberFormat,
     onDismiss: () -> Unit,
+    onPayRide: (RideSessionDto) -> Unit,
     onReportIssue: (RideSessionDto) -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
@@ -554,9 +559,14 @@ private fun RideHistoryDialog(
                         val fee = ride.totalFee ?: ride.estimatedFee
                         Surface(shape = MaterialTheme.shapes.large, color = colors.surfaceVariant) {
                             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(ride.vehicleCode ?: ride.sessionCode, Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                                    Text(if (ride.paid) "Đã thanh toán" else "Chờ thanh toán", style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = if (ride.paid) "Đã thanh toán" else "Chờ thanh toán",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (ride.paid) FontWeight.Normal else FontWeight.SemiBold,
+                                        color = if (ride.paid) colors.onSurfaceVariant else colors.primary
+                                    )
                                 }
                                 Text(ride.sessionCode, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -565,7 +575,8 @@ private fun RideHistoryDialog(
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     TextButton(
                                         onClick = { onReportIssue(ride) },
@@ -578,6 +589,21 @@ private fun RideHistoryDialog(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("Báo cáo sự cố", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                    if (!ride.paid) {
+                                        ItsButton(
+                                            onClick = { onPayRide(ride) },
+                                            modifier = Modifier.heightIn(min = 36.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Payment,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(5.dp))
+                                            Text("Thanh toán", style = MaterialTheme.typography.labelMedium)
+                                        }
                                     }
                                 }
                             }
