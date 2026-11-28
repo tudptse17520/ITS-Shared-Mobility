@@ -12,7 +12,7 @@
         android:label="@string/app_name"
         android:icon="@mipmap/ic_its_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ProjectItsMobility"
+        android:theme="@style/Theme.ItsSharedMobility"
         android:usesCleartextTraffic="true">
 
         <!-- Google Maps API key placeholder (VietMap TileOverlay & Leaflet fallback hoạt động ngay cả khi không có billing key) -->
@@ -23,7 +23,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ProjectItsMobility">
+            android:theme="@style/Theme.ItsSharedMobility">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
