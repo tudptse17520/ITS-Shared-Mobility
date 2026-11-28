@@ -12,11 +12,6 @@ import java.time.LocalDate;
 
 import vn.edu.ut.its.constant.PricingPolicyStatus;
 
-/**
- * DTO nhận dữ liệu bảng giá từ client (Create / Update).
- * Validation annotations xử lý E1 (bỏ trống thông tin bắt buộc).
- * effective_date dùng LocalDate với format DD-MM-YYYY đúng API Contract.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

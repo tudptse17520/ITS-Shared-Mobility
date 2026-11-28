@@ -47,7 +47,7 @@ public class VehicleTypeServiceImpl implements VehicleTypeService {
 
     @Override
     public VehicleTypeResponseDTO createVehicleType(VehicleTypeRequestDTO requestDTO) {
-        // E2: Check duplicate name
+        // Check duplicate name
         if (vehicleTypeRepository.existsByTypeName(requestDTO.getTypeName())) {
             throw new ConflictException(
                     "Loại phương tiện '" + requestDTO.getTypeName() + "' đã tồn tại trong hệ thống.");
@@ -73,7 +73,7 @@ public class VehicleTypeServiceImpl implements VehicleTypeService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy loại phương tiện với ID: " + id));
 
-        // E2: Check duplicate name (excluding this entity's own ID)
+        // Check duplicate name (excluding this entity's own ID)
         if (vehicleTypeRepository.existsByTypeNameAndIdNot(requestDTO.getTypeName(), id)) {
             throw new ConflictException(
                     "Loại phương tiện '" + requestDTO.getTypeName() + "' đã tồn tại trong hệ thống.");
@@ -99,7 +99,7 @@ public class VehicleTypeServiceImpl implements VehicleTypeService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy loại phương tiện với ID: " + id));
 
-        // E3: Kiểm tra có xe nào thuộc loại phương tiện này đang được thuê không
+        // Kiểm tra có xe nào thuộc loại phương tiện này đang được thuê không
         boolean hasActiveRide = rideSessionRepository
                 .existsByVehicle_VehicleType_IdAndStatusAndEndedAtIsNull(id, RideSessionStatus.IN_PROGRESS);
         if (hasActiveRide) {

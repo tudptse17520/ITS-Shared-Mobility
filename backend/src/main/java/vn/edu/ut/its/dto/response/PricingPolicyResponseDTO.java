@@ -11,11 +11,6 @@ import java.time.LocalDate;
 
 import vn.edu.ut.its.constant.PricingPolicyStatus;
 
-/**
- * DTO trả về thông tin bảng giá cho client trong API responses.
- * Cấu trúc khớp với API Contract Phase 1 – Section 4.1.B.
- * effective_date trả về dạng DD-MM-YYYY đúng spec.
- */
 @Data
 @Builder
 @NoArgsConstructor
