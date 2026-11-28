@@ -17,17 +17,9 @@ import java.util.Optional;
 @Repository
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
-    Optional<Vehicle> findByPlate(String plate);
-
-    boolean existsByPlate(String plate);
-
-    List<Vehicle> findByUserId(Long userId);
-
     Optional<Vehicle> findByVehicleCode(String vehicleCode);
 
     List<Vehicle> findByVehicleCodeIsNotNull();
-
-    List<Vehicle> findByFleetStatus(String fleetStatus);
 
     /**
      * Pessimistic Write Lock để xử lý cạnh tranh đồng thời (Concurrency Control)
