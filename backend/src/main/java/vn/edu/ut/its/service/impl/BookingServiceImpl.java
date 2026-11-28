@@ -4,10 +4,12 @@ import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import vn.edu.ut.its.dto.request.BookingRequestDTO;
 import vn.edu.ut.its.dto.response.BookingListResponseDTO;
 import vn.edu.ut.its.dto.response.BookingResponseDTO;
 import vn.edu.ut.its.entity.Booking;
+import vn.edu.ut.its.entity.Station;
 import vn.edu.ut.its.entity.StationDock;
 import vn.edu.ut.its.entity.User;
 import vn.edu.ut.its.entity.Vehicle;
@@ -25,11 +28,13 @@ import vn.edu.ut.its.exception.BusinessRuleViolationException;
 import vn.edu.ut.its.exception.ResourceNotFoundException;
 import vn.edu.ut.its.repository.BookingRepository;
 import vn.edu.ut.its.repository.StationDockRepository;
+import vn.edu.ut.its.repository.StationRepository;
 import vn.edu.ut.its.repository.UserRepository;
 import vn.edu.ut.its.repository.VehicleRepository;
 import vn.edu.ut.its.security.SecurityUtils;
 import vn.edu.ut.its.service.BookingService;
 import vn.edu.ut.its.service.DockAvailabilityService;
+import vn.edu.ut.its.service.SseEmitterManager;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +45,9 @@ public class BookingServiceImpl implements BookingService {
     private final UserRepository userRepository;
     private final VehicleRepository vehicleRepository;
     private final StationDockRepository stationDockRepository;
+    private final StationRepository stationRepository;
     private final DockAvailabilityService dockAvailabilityService;
+    private final SseEmitterManager sseEmitterManager;
 
     private User resolveUser(Long explicitUserId) {
         return SecurityUtils.resolveAuthorizedUser(explicitUserId, userRepository);
@@ -98,18 +105,22 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public List<BookingListResponseDTO> getBookingsByUserId(Long userId) {
         User targetUser = resolveUser(userId);
+        Map<Long, String> stationNames = loadStationNameMap();
         List<Booking> bookings = bookingRepository.findByUserId(targetUser.getId());
 
         return bookings.stream()
-                .map(this::mapToBookingListResponseDTO)
+                .sorted(Comparator.comparing(Booking::getId).reversed())
+                .map(b -> mapToBookingListResponseDTO(b, stationNames))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<BookingListResponseDTO> getAllBookings() {
+        Map<Long, String> stationNames = loadStationNameMap();
         return bookingRepository.findAll().stream()
-                .map(this::mapToBookingListResponseDTO)
+                .sorted(Comparator.comparing(Booking::getId).reversed())
+                .map(b -> mapToBookingListResponseDTO(b, stationNames))
                 .collect(Collectors.toList());
     }
 
@@ -133,6 +144,7 @@ public class BookingServiceImpl implements BookingService {
         if (booking.getStationDock() != null) {
             dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.AVAILABLE);
         }
+        releaseReservedVehicleIfNeeded(booking.getVehicle());
     }
 
     @Override
@@ -152,8 +164,11 @@ public class BookingServiceImpl implements BookingService {
                 dockAvailabilityService.updateDockStatus(booking.getStationDock().getId(), StationDockStatus.RESERVED);
             }
         }
+        if (status == BookingStatus.CANCELLED || status == BookingStatus.EXPIRED) {
+            releaseReservedVehicleIfNeeded(saved.getVehicle());
+        }
 
-        return mapToBookingListResponseDTO(saved);
+        return mapToBookingListResponseDTO(saved, loadStationNameMap());
     }
 
     @Override
@@ -177,17 +192,58 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private BookingListResponseDTO mapToBookingListResponseDTO(Booking booking) {
+    private Map<Long, String> loadStationNameMap() {
+        return stationRepository.findAll().stream()
+                .collect(Collectors.toMap(Station::getId, Station::getStationName, (a, b) -> a));
+    }
+
+    private void releaseReservedVehicleIfNeeded(Vehicle vehicle) {
+        if (vehicle == null || !"RESERVED".equalsIgnoreCase(vehicle.getFleetStatus())) {
+            return;
+        }
+        boolean hasActiveHold = bookingRepository
+                .findFirstByVehicleIdAndStatusOrderByIdDesc(vehicle.getId(), BookingStatus.CONFIRMED)
+                .isPresent();
+        if (!hasActiveHold) {
+            vehicle.setFleetStatus("AVAILABLE");
+            vehicleRepository.save(vehicle);
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("vehicleId", vehicle.getId());
+            payload.put("vehicleCode", vehicle.getVehicleCode());
+            payload.put("latitude", vehicle.getLatitude());
+            payload.put("longitude", vehicle.getLongitude());
+            payload.put("batteryLevel", vehicle.getBatteryLevel());
+            payload.put("lockStatus", vehicle.getLockStatus());
+            payload.put("fleetStatus", "AVAILABLE");
+            payload.put("timestamp", LocalDateTime.now().toString());
+            sseEmitterManager.broadcastFleetEvent(payload);
+        }
+    }
+
+    private BookingListResponseDTO mapToBookingListResponseDTO(Booking booking, Map<Long, String> stationNames) {
+        User u = booking.getUser();
+        String customerName = null;
+        if (u != null) {
+            customerName = (u.getFullName() != null && !u.getFullName().isBlank()) ? u.getFullName() : u.getUsername();
+        }
+        Vehicle v = booking.getVehicle();
+        String stationName = (v != null && v.getCurrentStationId() != null)
+                ? stationNames.get(v.getCurrentStationId())
+                : null;
         return BookingListResponseDTO.builder()
                 .bookingId(booking.getId())
                 .stationDockId(booking.getStationDock() != null ? booking.getStationDock().getId() : null)
                 .stationDockName(booking.getStationDock() != null ? booking.getStationDock().getDockName() : null)
+                .stationName(stationName)
+                .createdAt(booking.getCreatedAt() != null ? booking.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
+                .expiredAt(booking.getExpiredAt() != null ? booking.getExpiredAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
                 .plannedStartAt(booking.getPlannedStartAt() != null ? booking.getPlannedStartAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
                 .plannedEndAt(booking.getPlannedEndAt() != null ? booking.getPlannedEndAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
-                .customerName(booking.getUser() != null ? booking.getUser().getFullName() : null)
-                .customerPhone(booking.getUser() != null ? booking.getUser().getPhoneNumber() : null)
-                .licensePlate(booking.getVehicle() != null ? booking.getVehicle().getPlate() : null)
-                .vehicleTypeName(booking.getVehicle() != null && booking.getVehicle().getVehicleType() != null ? booking.getVehicle().getVehicleType().getTypeName() : null)
+                .customerName(customerName)
+                .customerPhone(u != null ? u.getPhoneNumber() : null)
+                .vehicleCode(v != null ? v.getVehicleCode() : null)
+                .licensePlate(v != null ? v.getPlate() : null)
+                .vehicleTypeName(v != null && v.getVehicleType() != null ? v.getVehicleType().getTypeName() : null)
                 .status(booking.getStatus())
                 .build();
     }

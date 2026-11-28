@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional(readOnly = true)
     public Page<FeedbackResponse> getAllFeedbacks(IssueType issueType, FeedbackStatus status, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size);
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<Feedback> feedbacks = feedbackRepository.findAllByFilters(issueType, status, pageable);
         return feedbacks.map(this::mapToResponse);
     }
@@ -102,9 +103,19 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     private FeedbackResponse mapToResponse(Feedback feedback) {
+        RideSession session = feedback.getRideSession();
+        String customerName = null;
+        if (session != null && session.getUser() != null) {
+            String fullName = session.getUser().getFullName();
+            customerName = (fullName != null && !fullName.isBlank()) ? fullName : session.getUser().getUsername();
+        }
         return FeedbackResponse.builder()
                 .id(feedback.getId())
-                .rideSessionId(feedback.getRideSession() != null ? feedback.getRideSession().getId() : null)
+                .rideSessionId(session != null ? session.getId() : null)
+                .sessionCode(session != null ? session.getSessionCode() : null)
+                .vehicleCode(session != null && session.getVehicle() != null ? session.getVehicle().getVehicleCode() : null)
+                .licensePlate(session != null ? session.getPlate() : null)
+                .customerName(customerName)
                 .issueType(feedback.getIssueType())
                 .description(feedback.getDescription())
                 .status(feedback.getStatus())

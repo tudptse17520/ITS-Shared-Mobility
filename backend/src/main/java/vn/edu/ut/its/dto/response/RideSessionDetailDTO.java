@@ -17,7 +17,12 @@ public class RideSessionDetailDTO {
     private Long id;
     
     private String plate;
+    private String vehicleCode;
+    private String vehicleTypeName;
     private String sessionCode;
+    private String customerName;
+    private String customerPhone;
+    private Double distanceKm;
     private String status;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;

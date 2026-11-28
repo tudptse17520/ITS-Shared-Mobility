@@ -15,10 +15,14 @@ public class BookingListResponseDTO {
     private Long bookingId;
     private Long stationDockId;
     private String stationDockName;
+    private String stationName;
+    private String createdAt;
+    private String expiredAt;
     private String plannedStartAt;
     private String plannedEndAt;
     private String customerName;
     private String customerPhone;
+    private String vehicleCode;
     private String licensePlate;
     private String vehicleTypeName;
 
