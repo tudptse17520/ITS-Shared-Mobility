@@ -64,28 +64,34 @@ export function BookingDetailDialog({ booking, isOpen, onClose }: BookingDetailD
               <div className="grid grid-cols-3 gap-4 pb-4 border-b">
                 <div className="text-sm font-medium text-muted-foreground">Phương tiện</div>
                 <div className="col-span-2">
-                  <p className="font-medium text-blue-600 dark:text-blue-400">{booking.licensePlate || "Chưa cập nhật"}</p>
-                  <p className="text-sm text-muted-foreground">{booking.vehicleTypeName || "N/A"}</p>
+                  <p className="font-medium text-blue-600 dark:text-blue-400">
+                    {booking.vehicleCode
+                      ? `${booking.vehicleCode} · ${booking.licensePlate || ""}`
+                      : booking.licensePlate || "Chưa cập nhật"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{booking.vehicleTypeName || "Xe chia sẻ"}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 pb-4 border-b">
-                <div className="text-sm font-medium text-muted-foreground">Vị trí dock</div>
+                <div className="text-sm font-medium text-muted-foreground">Trạm / Vị trí</div>
                 <div className="col-span-2">
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                    {booking.stationDockName || (booking.stationDockId != null ? `Dock ${booking.stationDockId}` : "Không gắn dock")}
+                    {booking.stationDockName ||
+                      booking.stationName ||
+                      (booking.stationDockId != null ? `Dock ${booking.stationDockId}` : "Đặt giữ trên bản đồ")}
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 pb-4 border-b">
-                <div className="text-sm font-medium text-muted-foreground">Thời gian dự kiến</div>
+                <div className="text-sm font-medium text-muted-foreground">Thời gian giữ chỗ</div>
                 <div className="col-span-2 flex flex-col gap-1">
                   <p className="text-sm text-emerald-600 dark:text-emerald-500">
-                    Vào: <span className="font-medium">{formatStr(booking.plannedStartAt)}</span>
+                    Đặt lúc: <span className="font-medium">{formatStr(booking.createdAt || booking.plannedStartAt)}</span>
                   </p>
                   <p className="text-sm text-rose-600 dark:text-rose-500">
-                    Ra: <span className="font-medium">{formatStr(booking.plannedEndAt)}</span>
+                    Hết hạn: <span className="font-medium">{formatStr(booking.expiredAt || booking.plannedEndAt)}</span>
                   </p>
                 </div>
               </div>

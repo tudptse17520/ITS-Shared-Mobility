@@ -4,6 +4,11 @@ export interface RideSession {
   id: number;
   sessionCode: string;
   plate: string;
+  vehicleCode?: string | null;
+  vehicleTypeName?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  distanceKm?: number | null;
   startedAt: string;
   endedAt: string | null;
   totalFee: number | null;

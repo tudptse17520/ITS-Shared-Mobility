@@ -66,6 +66,12 @@ export const useCancelBooking = () => {
       queryClient.invalidateQueries({
         queryKey: ["docks"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["fleet-vehicles"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["fleet-stations"],
+      });
       toast.success("Hủy đặt chỗ thành công!");
     },
     onError: (error: unknown) => {

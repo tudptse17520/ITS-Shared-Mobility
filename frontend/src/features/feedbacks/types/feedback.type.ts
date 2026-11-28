@@ -5,6 +5,10 @@ export type FeedbackStatus = "REPORTED" | "PROCESSING" | "RESOLVED";
 export interface Feedback {
   id: number;
   rideSessionId: number;
+  sessionCode?: string | null;
+  vehicleCode?: string | null;
+  licensePlate?: string | null;
+  customerName?: string | null;
   issueType: IssueType;
   description: string;
   status: FeedbackStatus;

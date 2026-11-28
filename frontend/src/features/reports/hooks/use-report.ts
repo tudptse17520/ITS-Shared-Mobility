@@ -17,7 +17,7 @@ const REPORT_KEYS = {
   vehicleFlow: (filter: ReportFilter) => [...REPORT_KEYS.all, "vehicle-flow", filter] as const,
 };
 
-export const useDashboardReport = (filter: ReportFilter = {}, refetchInterval?: number) => {
+export const useDashboardReport = (filter: ReportFilter = {}, refetchInterval = 5000) => {
   return useQuery({
     queryKey: REPORT_KEYS.dashboard(filter),
     queryFn: () => getDashboardReport(filter),
@@ -25,28 +25,31 @@ export const useDashboardReport = (filter: ReportFilter = {}, refetchInterval?: 
   });
 };
 
-export const useRevenueReport = (filter: ReportFilter = {}) => {
+export const useRevenueReport = (filter: ReportFilter = {}, refetchInterval = 5000) => {
   return useQuery({
     queryKey: REPORT_KEYS.revenue(filter),
     queryFn: () => getRevenueReport(filter),
+    refetchInterval,
   });
 };
 
-export const useOccupancyReport = (filter: ReportFilter = {}) => {
+export const useOccupancyReport = (filter: ReportFilter = {}, refetchInterval = 5000) => {
   return useQuery({
     queryKey: REPORT_KEYS.occupancy(filter),
     queryFn: () => getOccupancyRateReport(filter),
+    refetchInterval,
   });
 };
 
-export const usePeakHourReport = (filter: ReportFilter = {}) => {
+export const usePeakHourReport = (filter: ReportFilter = {}, refetchInterval = 5000) => {
   return useQuery({
     queryKey: REPORT_KEYS.peakHour(filter),
     queryFn: () => getPeakHourReport(filter),
+    refetchInterval,
   });
 };
 
-export const useVehicleFlowReport = (filter: ReportFilter = {}, refetchInterval?: number) => {
+export const useVehicleFlowReport = (filter: ReportFilter = {}, refetchInterval = 5000) => {
   return useQuery({
     queryKey: REPORT_KEYS.vehicleFlow(filter),
     queryFn: () => getRideFlowReport(filter),

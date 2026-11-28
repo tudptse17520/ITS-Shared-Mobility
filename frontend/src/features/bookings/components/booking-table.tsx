@@ -115,26 +115,32 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
         header: "Phương tiện",
         cell: ({ row }) => (
           <div className="flex flex-col">
-            <span className="font-medium text-blue-600 dark:text-blue-400">{row.original.licensePlate || "Chưa cập nhật"}</span>
-            <span className="text-xs text-muted-foreground">{row.original.vehicleTypeName || "N/A"}</span>
+            <span className="font-medium text-blue-600 dark:text-blue-400">
+              {row.original.vehicleCode
+                ? `${row.original.vehicleCode} · ${row.original.licensePlate || ""}`
+                : row.original.licensePlate || "Chưa cập nhật"}
+            </span>
+            <span className="text-xs text-muted-foreground">{row.original.vehicleTypeName || "Xe chia sẻ"}</span>
           </div>
         ),
       },
       {
         accessorKey: "stationDockId",
-        header: "Vị trí",
+        header: "Trạm / Vị trí",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-            {row.original.stationDockName || (row.original.stationDockId != null ? `Dock ${row.original.stationDockId}` : "Không gắn dock")}
+            {row.original.stationDockName ||
+              row.original.stationName ||
+              (row.original.stationDockId != null ? `Dock ${row.original.stationDockId}` : "Đặt giữ trên bản đồ")}
           </span>
         ),
       },
       {
         id: "timeRange",
-        header: "Thời gian dự kiến",
+        header: "Thời gian giữ chỗ",
         cell: ({ row }) => {
-          const inDateStr = row.original.plannedStartAt;
-          const outDateStr = row.original.plannedEndAt;
+          const inDateStr = row.original.createdAt || row.original.plannedStartAt;
+          const outDateStr = row.original.expiredAt || row.original.plannedEndAt;
           
           const formatStr = (d?: string) => {
             if (!d) return "N/A";
@@ -147,8 +153,8 @@ export function BookingTable({ data, isLoading, isManagerView = false }: Booking
 
           return (
             <div className="flex flex-col gap-0.5 text-xs">
-              <span className="text-emerald-600 dark:text-emerald-500">Vào: <span className="font-medium">{formatStr(inDateStr)}</span></span>
-              <span className="text-rose-600 dark:text-rose-500">Ra: <span className="font-medium">{formatStr(outDateStr)}</span></span>
+              <span className="text-emerald-600 dark:text-emerald-500">Đặt lúc: <span className="font-medium">{formatStr(inDateStr)}</span></span>
+              <span className="text-rose-600 dark:text-rose-500">Hết hạn: <span className="font-medium">{formatStr(outDateStr)}</span></span>
             </div>
           );
         },

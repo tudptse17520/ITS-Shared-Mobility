@@ -23,6 +23,7 @@ export const useUsers = (keyword?: string, role?: string, status?: string) => {
   return useQuery<UserListResponse, AxiosError<ApiErrorResponse>>({
     queryKey: [...USERS_QUERY_KEY, keyword, role, status],
     queryFn: () => getUsers(keyword, role, status),
+    refetchInterval: 5000,
   });
 };
 
