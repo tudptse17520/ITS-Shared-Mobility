@@ -363,6 +363,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun openRideForPayment(ride: RideSessionDto) {
+        if (ride.paid) return
+        clearMessages()
+        vnpayPaymentUrl = null
+        completedRideForPayment = ride
+    }
+
+    fun dismissPaymentScreen() {
+        completedRideForPayment = null
+        vnpayPaymentUrl = null
+        clearMessages()
+        loadRideHistory()
+    }
+
     fun initiatePayment(method: String) {
         val ride = completedRideForPayment ?: return
         val amount = ride.totalFee ?: ride.estimatedFee
@@ -385,8 +399,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         completedRideForPayment = null
                         vnpayPaymentUrl = null
-                        statusMessage = "Đã thanh toán."
+                        statusMessage = "Đã thanh toán chuyến ${ride.sessionCode}."
                         refreshFleet()
+                        loadRideHistory()
                     }
                 } else {
                     errorMessage = parseError(res.errorBody()?.string(), "Tạo giao dịch thất bại")
@@ -414,6 +429,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             completedRideForPayment = null
             vnpayPaymentUrl = null
             refreshFleet()
+            loadRideHistory()
         }
     }
 

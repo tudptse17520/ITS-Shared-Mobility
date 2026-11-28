@@ -1,7 +1,6 @@
 "use client";
 
 import { PencilSimpleIcon as Edit, EyeIcon as Eye, TrashIcon as Trash2 } from "@phosphor-icons/react/ssr";
-import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Feedback, type FeedbackStatus, type IssueType } from "../types/feedback.type";
 import { DataTable } from "@/components/common/data-table";
@@ -17,27 +16,34 @@ interface FeedbackTableProps {
 }
 
 export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: FeedbackTableProps) {
-  const enhancedData = React.useMemo(() => data.map(item => ({
-    ...item,
-    licensePlate: `51F-${100 + (item.id % 900)}.${10 + (item.id % 90)}`,
-  })), [data]);
-
-  type FeedbackRow = Feedback & { licensePlate: string };
-
-  const columns: ColumnDef<FeedbackRow>[] = [
+  const columns: ColumnDef<Feedback>[] = [
     {
       header: "ID",
       accessorKey: "id",
+      cell: ({ row }) => <span className="font-mono text-xs">#{row.original.id}</span>,
     },
     {
-      header: "Lượt gửi & Xe",
+      header: "Chuyến đi & Phương tiện",
       accessorKey: "rideSessionId",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="font-semibold text-primary">#{row.original.rideSessionId}</span>
-          <span className="text-xs text-muted-foreground">{row.original.licensePlate}</span>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const subInfo = [
+          row.original.vehicleCode,
+          row.original.licensePlate,
+          row.original.customerName,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono text-xs font-semibold text-primary">
+              {row.original.sessionCode || `#${row.original.rideSessionId}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {subInfo || `Phiên #${row.original.rideSessionId}`}
+            </span>
+          </div>
+        );
+      },
     },
     {
       header: "Loại sự cố",
@@ -111,7 +117,7 @@ export function FeedbackTable({ data, isLoading, onView, onEdit, onDelete }: Fee
   return (
     <DataTable
       columns={columns}
-      data={enhancedData}
+      data={data}
       isLoading={isLoading}
     />
   );

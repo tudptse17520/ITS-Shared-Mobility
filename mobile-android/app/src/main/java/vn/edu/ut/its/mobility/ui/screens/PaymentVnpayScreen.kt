@@ -115,6 +115,13 @@ fun PaymentVnpayScreen(
                     ) {
                         Text("Trả bằng tiền mặt")
                     }
+                    TextButton(
+                        onClick = { viewModel.dismissPaymentScreen() },
+                        enabled = !viewModel.isLoading,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Để sau · Quay về bản đồ")
+                    }
                 }
             }
         }

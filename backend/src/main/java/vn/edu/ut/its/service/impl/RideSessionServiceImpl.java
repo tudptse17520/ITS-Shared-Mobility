@@ -120,7 +120,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         }
 
         // Sắp xếp mặc định theo thời gian vào (mới nhất lên trước)
-        query.orderBy(cb.desc(root.get("startedAt")));
+        query.orderBy(cb.desc(root.get("startedAt")), cb.desc(root.get("id")));
 
         // ==================== Bước 3: Truy xuất cơ sở dữ liệu (Database Fetch) ====================
 
@@ -149,7 +149,7 @@ public class RideSessionServiceImpl implements RideSessionService {
         Root<RideSession> root = query.from(RideSession.class);
 
         query.where(cb.equal(root.get("user").get("id"), userId));
-        query.orderBy(cb.desc(root.get("startedAt")));
+        query.orderBy(cb.desc(root.get("startedAt")), cb.desc(root.get("id")));
 
         List<RideSession> sessions = entityManager.createQuery(query).getResultList();
 
@@ -195,6 +195,18 @@ public class RideSessionServiceImpl implements RideSessionService {
 
     private RideSessionDetailDTO toDetail(RideSession session) {
         RideSessionDetailDTO detail = modelMapper.map(session, RideSessionDetailDTO.class);
+        if (session.getVehicle() != null) {
+            detail.setVehicleCode(session.getVehicle().getVehicleCode());
+            if (session.getVehicle().getVehicleType() != null) {
+                detail.setVehicleTypeName(session.getVehicle().getVehicleType().getTypeName());
+            }
+        }
+        if (session.getUser() != null) {
+            String fullName = session.getUser().getFullName();
+            detail.setCustomerName(fullName != null && !fullName.isBlank() ? fullName : session.getUser().getUsername());
+            detail.setCustomerPhone(session.getUser().getPhoneNumber());
+        }
+        detail.setDistanceKm(session.getDistanceKm() != null ? session.getDistanceKm() : 0.0);
         if (session.getStatus() == RideSessionStatus.IN_PROGRESS && session.getEndedAt() != null) {
             detail.setStatus("AWAITING_PAYMENT");
         }

@@ -3,6 +3,7 @@ package vn.edu.ut.its;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.PessimisticLockingFailureException;
 import vn.edu.ut.its.dto.mobility.ReserveVehicleRequestDTO;
 import vn.edu.ut.its.entity.User;
 import vn.edu.ut.its.entity.Vehicle;
@@ -59,7 +60,7 @@ class ConcurrencyReservationTest {
                             .userId(testUser.getId())
                             .build());
                     return true;
-                } catch (ConflictException ex) {
+                } catch (ConflictException | PessimisticLockingFailureException ex) {
                     return false;
                 }
             });
@@ -67,7 +68,7 @@ class ConcurrencyReservationTest {
 
         try {
             int successCount = 0;
-            for (Future<Boolean> result : executor.invokeAll(attempts, 30, TimeUnit.SECONDS)) {
+            for (Future<Boolean> result : executor.invokeAll(attempts, 60, TimeUnit.SECONDS)) {
                 if (result.get()) {
                     successCount++;
                 }

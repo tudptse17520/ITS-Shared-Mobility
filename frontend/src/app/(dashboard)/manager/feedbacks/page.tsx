@@ -83,11 +83,14 @@ export default function FeedbacksPage() {
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
       data = data.filter((item: Feedback) => {
-        const mockLicensePlate = `51f-${100 + (item.id % 900)}.${10 + (item.id % 90)}`.toLowerCase();
         return (
           String(item.id).toLowerCase().includes(lowerQuery) ||
           String(item.rideSessionId).toLowerCase().includes(lowerQuery) ||
-          mockLicensePlate.includes(lowerQuery)
+          (item.sessionCode?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (item.vehicleCode?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (item.licensePlate?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (item.customerName?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (item.description?.toLowerCase().includes(lowerQuery) ?? false)
         );
       });
     }

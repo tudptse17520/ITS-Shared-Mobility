@@ -6,9 +6,18 @@ export interface BookingResponse {
 
 export interface BookingListResponse {
   bookingId: number;
-  stationDockId: number;
+  stationDockId: number | null;
   stationDockName?: string;
+  stationName?: string;
+  createdAt?: string;
+  expiredAt?: string;
   plannedStartAt: string;
+  plannedEndAt?: string;
+  customerName?: string;
+  customerPhone?: string;
+  vehicleCode?: string;
+  licensePlate?: string;
+  vehicleTypeName?: string;
   status: string;
 }
 
