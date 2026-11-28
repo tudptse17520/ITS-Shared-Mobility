@@ -105,17 +105,28 @@ class SecurityAndWorkflowAuditTest {
     @Test
     void validatesPaymentFilters() throws Exception {
         String token = bearerFor("admin");
+        Payment seededCash = paymentRepository.save(Payment.builder()
+                .amount(BigDecimal.valueOf(15000))
+                .paymentMethod(PaymentMethod.Cash)
+                .feeType(FeeType.RIDE_FEE)
+                .status(PaymentStatus.SUCCESS)
+                .paymentTime(LocalDateTime.now())
+                .build());
 
-        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
-                        .param("paymentMethod", "cash"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").isNotEmpty())
-                .andExpect(jsonPath("$.data[*].paymentMethod", everyItem(is("Cash"))));
+        try {
+            mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                            .param("paymentMethod", "cash"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isNotEmpty())
+                    .andExpect(jsonPath("$.data[*].paymentMethod", everyItem(is("Cash"))));
 
-        mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
-                        .param("fromDate", "31-02-2026"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("dd-MM-yyyy")));
+            mockMvc.perform(get("/api/v1/payments").header("Authorization", token)
+                            .param("fromDate", "31-02-2026"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message", containsString("dd-MM-yyyy")));
+        } finally {
+            paymentRepository.deleteById(seededCash.getId());
+        }
     }
 
     @Test
