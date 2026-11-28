@@ -15,7 +15,5 @@ public class ReserveVehicleRequestDTO {
     private Long vehicleId;
 
     private Long userId;
-
-    private Integer holdMinutes;
 }
 

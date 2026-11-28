@@ -182,7 +182,7 @@ class SecurityAndWorkflowAuditTest {
         mockMvc.perform(post("/api/v1/mobility/reserve")
                         .header("Authorization", userToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"vehicleId\":" + vehicle.getId() + ",\"holdMinutes\":15}"))
+                        .content("{\"vehicleId\":" + vehicle.getId() + "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
@@ -264,7 +264,6 @@ class SecurityAndWorkflowAuditTest {
         var bookingDto = mobilityService.reserveVehicle(ReserveVehicleRequestDTO.builder()
                 .vehicleId(vehicle.getId())
                 .userId(user.getId())
-                .holdMinutes(10)
                 .build());
 
         Booking booking = bookingRepository.findById(bookingDto.getId()).orElseThrow();
