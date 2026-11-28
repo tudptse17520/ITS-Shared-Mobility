@@ -40,6 +40,6 @@ The backend server will start on `http://localhost:8080`.
 
 ## Upgrade an existing database
 
-Back up the SQL Server database and test the upgrade on a copy. Stop the backend and run [migrate-its-schema.sql](scripts/migrate-its-schema.sql) against the intended database before starting the new version. Leave `ITS_DEMO_SEED` unset or false to preserve existing records. A fresh database can start directly with the current schema.
+For a database created before the ride schema update, back it up and test the upgrade on a copy. Stop the backend and run the [one-time upgrade script from commit `34c1098`](https://github.com/tudptse17520/ITS-Shared-Mobility/blob/34c109861b3a07944aea756a1a1be5db7b10426e/backend/scripts/migrate-its-schema.sql) before starting the current version. Leave `ITS_DEMO_SEED` unset or false to preserve existing records. A fresh database or a database already on the current schema can start directly.
 
 Historical payment adjustments remain in transaction history and are excluded from ride revenue. Review the upgraded records and start the backend against the copy before rolling out the upgrade.
